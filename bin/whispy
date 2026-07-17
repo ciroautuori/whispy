@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+"""Whispy launcher — press-once-to-record dictation toggle.
+
+Thin wrapper around the whispy package for direct invocation or hotkey binding.
+Run with no arguments to toggle recording. Subcommands:
+
+  record     Force-start a recording session.
+  transcribe Force-transcribe the latest recording.
+  version    Print the installed version and exit.
+"""
+
+import sys
+
+
+def main() -> int:
+    try:
+        from whispy.toggle import main as toggle_main
+    except ImportError:
+        print(
+            "[whispy] package not importable — run from the repo root or install it.",
+            file=sys.stderr,
+        )
+        return 1
+
+    if len(sys.argv) > 1:
+        sub = sys.argv[1]
+        if sub == "version":
+            from whispy import __version__
+            print(__version__)
+            return 0
+        if sub == "record":
+            from whispy.audio import record
+            from whispy.config import Config
+            record(Config.load())
+            return 0
+        if sub == "transcribe":
+            from whispy.toggle import _transcribe_and_paste
+            from whispy.config import Config
+            _transcribe_and_paste(Config.load())
+            return 0
+        print(f"[whispy] unknown subcommand: {sub}", file=sys.stderr)
+        return 1
+
+    return toggle_main()
+
+
+if __name__ == "__main__":
+    sys.exit(main())
