@@ -98,20 +98,20 @@ Press `Super+F12`, talk, press again — text appears at the cursor.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                          Whispy                               │
-│                                                               │
-│   ┌──────────────────┐        ┌────────────────────────────┐   │
-│   │ Dictation toggle │        │   Second Brain (desktop)  │   │
-│   │  Super+F12       │        │                            │   │
-│   │   → record       │        │  FastAPI (:58182)         │   │
-│   │   → whisper.cpp  │        │   + pywebview native window│   │
-│   │   → paste cursor │        │                            │   │
-│   └────────┬─────────┘        │  Tree · Kanban · Notes    │   │
-│            │ whispy ingest   │  Graph · Stats · Search   │   │
-│            └─────────────────►  Backlinks (Obsidian)     │   │
-│                              │  HyperKanban nested tree  │   │
-│                              │  brain.json (single file) │   │
-│                              └────────────────────────────┘   │
+│                          Whispy                              │
+│                                                              │
+│   ┌──────────────────┐        ┌────────────────────────────┐ │
+│   │ Dictation toggle │        │   Second Brain (desktop)   │ │
+│   │  Super+F12       │        │                            │ │
+│   │   → record       │        │ FastAPI (:58182)           │ │
+│   │   → whisper.cpp  │        │ + pywebview native window  │ │
+│   │   → paste cursor │        │                            │ │
+│   └────────┬─────────┘        │  Tree · Kanban · Notes     │ │
+│            │ whispy ingest    │ Graph · Stats · Search     │ │
+│            └─────────────────►  Backlinks (Obsidian)       │ │
+│                               │ HyperKanban nested tree    │ │
+│                               │ brain.json (single file)   │ │
+│                               └────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────┘
 ```
 
