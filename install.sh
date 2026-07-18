@@ -1,77 +1,141 @@
 #!/usr/bin/env bash
-# Whispy installer — Python package + optional system deps + desktop entry.
-# Safe to re-run. No Rust, no Tauri, no Electron — Python only.
+# Whispy installer. Desktop hotkeys get a shell wrapper that pip never overwrites.
 set -euo pipefail
 
-PREFIX="${PREFIX:-$HOME/.local}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PREFIX="${PREFIX:-$HOME/.local}"
+BIN_DIR="$PREFIX/bin"
+HOTKEY_BIN="$BIN_DIR/whispy-hotkey"
+WHISPY_BIN="$BIN_DIR/whispy"
+WRAPPER_SRC="$SCRIPT_DIR/scripts/whispy-hotkey.sh"
+UNIT_SRC="$SCRIPT_DIR/packaging/whispy-ptt.service"
+UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 
-echo "→ Installing whispy (prefix: $PREFIX)"
+echo "→ Installing whispy"
 
-# ── Python package (runtime + desktop UI deps) ─────────────────────
-if command -v uv >/dev/null 2>&1; then
-    uv tool install -e "$SCRIPT_DIR" --force --with "whispy[desktop]"
-    ln -sf "$(uv tool dir)"/bin/whispy "$PREFIX/bin/whispy" 2>/dev/null || true
-elif command -v pip >/dev/null 2>&1; then
-    pip install -e "$SCRIPT_DIR[desktop]" --user --quiet
+mkdir -p "$BIN_DIR"
+
+if command -v pip >/dev/null 2>&1; then
+    pip install -e "$SCRIPT_DIR" --user --quiet --break-system-packages 2>/dev/null \
+        || pip install -e "$SCRIPT_DIR" --user --quiet
+elif command -v uv >/dev/null 2>&1; then
+    uv pip install -e "$SCRIPT_DIR" --system 2>/dev/null \
+        || uv tool install -e "$SCRIPT_DIR" --force
+else
+    echo "pip or uv required" >&2
+    exit 1
 fi
 
-# ── Default config ──────────────────────────────────────────────────
+# Hotkey wrapper lives at its own path so pip upgrades never clobber it
+install -m 755 "$WRAPPER_SRC" "$HOTKEY_BIN"
+if [[ ! -x "$WHISPY_BIN" ]]; then
+    ln -sf "$HOTKEY_BIN" "$WHISPY_BIN"
+fi
+
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/whispy"
 DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/whispy"
-mkdir -p "$CONFIG_DIR" "$DATA_DIR/models"
+APP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+mkdir -p "$CONFIG_DIR" "$DATA_DIR/models" "$APP_DIR" "$UNIT_DIR"
+
 if [[ ! -f "$CONFIG_DIR/whispy.conf" ]]; then
     cat > "$CONFIG_DIR/whispy.conf" <<'CONF'
-# Whispy configuration
-BACKEND="cli"
-WHISPER_MODEL=""
-WHISPER_LANGUAGE="auto"
-WHISPER_THREADS=4
-AUTOPASTE=1
-SILENCE_DURATION=1.5
-SILENCE_THRESHOLD=3
-MAX_RECORD_SECONDS=120
+# Whispy — every key is optional
+WHISPER_MODEL=                  # empty = auto-detect
+WHISPER_LANGUAGE=en             # en, it, … ("auto" to detect)
+WHISPER_THREADS=8
+AUTOPASTE=1                     # 0 = clipboard only
+PTT_KEY=META+F12                # push-to-talk key
+NOTIFY_LEVEL=normal             # normal | quiet | off
+MAX_RECORD_SECONDS=8            # toggle safety net
 CONF
-    echo "→ Wrote default config to $CONFIG_DIR/whispy.conf"
+    echo "→ Config: $CONFIG_DIR/whispy.conf"
 fi
 
-# ── Desktop entries ─────────────────────────────────────────────────
-mkdir -p "$PREFIX/share/applications"
-cat > "$PREFIX/share/applications/whispy.desktop" <<'DESK'
+cat > "$APP_DIR/whispy.desktop" <<EOF
 [Desktop Entry]
 Name=Whispy Dictate
-Comment=Press once to record, press again to transcribe and paste
-Exec=whispy
-Icon=microphone-sensitivity-high-symbolic
+Comment=Speak, and the text lands at your cursor
+Exec=$HOTKEY_BIN
+Icon=audio-input-microphone
 Type=Application
 Terminal=false
 Categories=Utility;AudioVideo;
-DESK
+StartupNotify=false
+EOF
+rm -f "$APP_DIR/whispy-tray.desktop"
+update-desktop-database "$APP_DIR" 2>/dev/null || true
 
-cat > "$PREFIX/share/applications/whispy-brain.desktop" <<'DESK'
-[Desktop Entry]
-Name=Whispy Brain
-Comment=Notion + Obsidian hybrid second brain — HyperKanban, notes, graph
-Exec=whispy brain
-Icon=accessories-text-editor-symbolic
-Type=Application
-Terminal=false
-Categories=Utility;Office;
-DESK
-echo "→ Desktop entries installed (whispy, whispy-brain)"
+# --- push-to-talk unit ---
+sed -e "s|__WHISPY_BIN__|$WHISPY_BIN|g" -e "s|__BIN_DIR__|$BIN_DIR|g" \
+    "$UNIT_SRC" > "$UNIT_DIR/whispy-ptt.service"
+systemctl --user daemon-reload 2>/dev/null || true
+echo "→ Unit: $UNIT_DIR/whispy-ptt.service"
 
-# ── Optional system tools check ─────────────────────────────────────
+PTT_ACTIVE=0
+systemctl --user is-enabled whispy-ptt.service >/dev/null 2>&1 && PTT_ACTIVE=1
+
+# --- KDE: bind the toggle hotkey ONLY when push-to-talk isn't in charge ---
+# Both on the same key would fire two recordings per press.
+KGLOB="${XDG_CONFIG_HOME:-$HOME/.config}/kglobalshortcutsrc"
+if [[ -f "$KGLOB" && "$PTT_ACTIVE" -eq 0 ]]; then
+    KHOT="${XDG_CONFIG_HOME:-$HOME/.config}/khotkeysrc"
+    if [[ -f "$KHOT" ]]; then
+        # khotkeys + kglobalaccel on the same key = double fire
+        sed -i 's/^Enabled=true$/Enabled=false/' "$KHOT" 2>/dev/null || true
+        sed -i "s|CommandURL=.*whispy.*|CommandURL=$HOTKEY_BIN|g" "$KHOT" 2>/dev/null || true
+    fi
+
+    python3 - "$KGLOB" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+p = Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+# release Meta+F12 from the older whisper-toggle entry, if present
+text = re.sub(r"(\[services\]\[whisper-toggle\.desktop\]\n)_launch=.*", r"\1_launch=none", text)
+if "[services][whispy.desktop]" not in text:
+    text = text.rstrip() + "\n\n[services][whispy.desktop]\n_launch=Meta+F12\n"
+else:
+    text = re.sub(
+        r"(\[services\]\[whispy\.desktop\]\n)_launch=.*", r"\1_launch=Meta+F12", text, count=1
+    )
+p.write_text(text, encoding="utf-8")
+print("→ KDE: Meta+F12 → toggle")
+PY
+    systemctl --user try-restart plasma-kglobalaccel.service 2>/dev/null || true
+elif [[ "$PTT_ACTIVE" -eq 1 ]]; then
+    echo "→ push-to-talk is enabled: leaving desktop shortcuts untouched"
+fi
+
 echo ""
-echo "System tools status:"
-for tool in whisper-cli whisper-server rec arecord wtype ydotool xdotool wl-copy; do
+echo "System tools:"
+for tool in whisper-cli arecord wl-copy ydotool notify-send python3; do
     if command -v "$tool" >/dev/null 2>&1; then
         echo "  ✓ $tool"
     else
-        echo "  ✗ $tool (optional)"
+        echo "  · $tool (MISSING)"
     fi
 done
+python3 -c "import evdev" 2>/dev/null \
+    && echo "  ✓ python-evdev" \
+    || echo "  · python-evdev (MISSING — required for push-to-talk)"
+
+if ! id -nG "$USER" | grep -qw input; then
+    echo ""
+    echo "  ! You are not in the 'input' group — push-to-talk cannot read the keyboard."
+    echo "    sudo usermod -aG input $USER    # then log out and back in"
+fi
 
 echo ""
-echo "✔ Done."
-echo "  Bind hotkey (e.g. Super+F12) →: $PREFIX/bin/whispy"
-echo "  Open Second Brain desktop app →: whispy brain"
+echo "✔ Installed"
+echo ""
+echo "  Push-to-talk (recommended) — hold the key, speak, release:"
+echo "    systemctl --user enable --now whispy-ptt"
+echo ""
+echo "  Toggle — press to start, press again to transcribe:"
+echo "    bind a shortcut to $WHISPY_BIN   (absolute path required)"
+echo ""
+echo "  Model:  see README for the download command"
+echo "  Logs:   tail -f /tmp/whispy.log"
+echo "  Tests:  pip install -e '.[dev,ptt]' && pytest -q"

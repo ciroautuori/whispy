@@ -1,0 +1,61 @@
+name: 🐛 Bug report
+description: Something doesn't work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Logs are what make a bug fixable:
+        `tail -50 /tmp/whispy.log`, plus `journalctl --user -u whispy-ptt -n 50`
+        if you use push-to-talk.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: What you expected, and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce
+      placeholder: |
+        1. hold Meta+F12
+        2. say "testing"
+        3. release
+        4. nothing appears
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options:
+        - push-to-talk (whispy ptt)
+        - toggle (whispy)
+        - not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Paste `/tmp/whispy.log`, and the journal if you use push-to-talk.
+      render: shell
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: |
+        Distro, desktop (KDE/GNOME/Hyprland), Wayland or X11,
+        `whisper-cli --help | head -1`, model in use, GPU or CPU.
+      placeholder: |
+        Arch, KDE Plasma 6, Wayland
+        whisper.cpp-cuda 1.9.1, large-v3-turbo, RTX 4060
+    validations:
+      required: true

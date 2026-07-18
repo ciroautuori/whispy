@@ -1,8 +1,4 @@
-"""Configuration loading and defaults for Whispy.
-
-Reads a INI-style config file (sourced as shell variables for parity with the
-classic whisper-toggle.conf) and exposes a typed :class:`Config` object.
-"""
+"""Minimal config: ~/.config/whispy/whispy.conf (KEY=value)."""
 
 from __future__ import annotations
 
@@ -12,104 +8,102 @@ from pathlib import Path
 
 
 def _config_dir() -> Path:
-    """Return the platform-appropriate config directory for Whispy."""
     xdg = os.environ.get("XDG_CONFIG_HOME")
-    if xdg:
-        return Path(xdg) / "whispy"
-    return Path.home() / ".config" / "whispy"
+    return Path(xdg) / "whispy" if xdg else Path.home() / ".config" / "whispy"
 
 
 def _data_dir() -> Path:
-    """Return the platform-appropriate data directory for models/cache."""
     xdg = os.environ.get("XDG_DATA_HOME")
-    if xdg:
-        return Path(xdg) / "whispy"
-    return Path.home() / ".local" / "share" / "whispy"
+    return Path(xdg) / "whispy" if xdg else Path.home() / ".local" / "share" / "whispy"
+
+
+def _default_audio() -> Path:
+    if os.environ.get("WHISPY_AUDIO"):
+        return Path(os.environ["WHISPY_AUDIO"])
+    return Path("/dev/shm/whispy.wav") if Path("/dev/shm").exists() else Path("/tmp/whispy.wav")
+
+
+def _default_lock() -> Path:
+    if os.environ.get("WHISPY_LOCK"):
+        return Path(os.environ["WHISPY_LOCK"])
+    return Path("/tmp/whispy.lock")
+
+
+def resolve_model(explicit: str = "") -> str:
+    """Pick the best available model.
+
+    If ``explicit`` is set it is used as-is (even if missing → clear error later).
+    Otherwise: large-v3-turbo (whispy/whisper-toggle) → base → default path.
+    """
+    if explicit and explicit.strip():
+        return str(Path(explicit).expanduser())
+
+    candidates = [
+        _data_dir() / "models" / "ggml-large-v3-turbo.bin",
+        Path.home() / ".local/share/whisper-toggle/models/ggml-large-v3-turbo.bin",
+        _data_dir() / "models" / "ggml-base.bin",
+        Path.home() / ".local/share/whisper-toggle/models/ggml-base.bin",
+    ]
+    for c in candidates:
+        if c.is_file():
+            return str(c)
+    return str(_data_dir() / "models" / "ggml-base.bin")
 
 
 @dataclass
 class Config:
-    """Runtime configuration for the Whispy recorder/transcriber."""
-
-    backend: str = "server"
-    whisper_server: str = ""
-    whisper_cli: str = ""
     whisper_model: str = ""
-    whisper_port: int = 58181
-    whisper_device: int = 0
-    whisper_threads: int = 4
-    whisper_language: str = "auto"
+    whisper_language: str = "it"
+    whisper_threads: int = 8
     autopaste: bool = True
-    silence_duration: float = 3.0
+    silence_duration: float = 1.5
     silence_threshold: int = 3
-    record_device: str = ""
     max_record_seconds: int = 120
     keep_audio: bool = False
-    log_file: str = ""
-
-    config_dir: Path = field(default_factory=_config_dir)
-    data_dir: Path = field(default_factory=_data_dir)
+    ptt_key: str = "META+F12"
+    notify_level: str = "normal"  # normal | quiet | off
+    audio_file: Path = field(default_factory=_default_audio)
+    lock_file: Path = field(default_factory=_default_lock)
 
     @property
     def config_file(self) -> Path:
-        """Path to the main configuration file."""
-        return self.config_dir / "whispy.conf"
-
-    @property
-    def audio_file(self) -> Path:
-        """Path to the temporary recording WAV file."""
-        return Path("/dev/shm/whispy.wav") if Path("/dev/shm").exists() else Path("/tmp/whispy.wav")
-
-    @property
-    def lock_file(self) -> Path:
-        """Path to the toggle lock file."""
-        return Path("/tmp/whispy.lock")
-
-    @property
-    def debounce_file(self) -> Path:
-        """Path to the debounce state file."""
-        return Path("/tmp/whispy-debounce")
+        return _config_dir() / "whispy.conf"
 
     @property
     def default_model(self) -> Path:
-        """Default model location."""
-        return self.data_dir / "models" / "ggml-base.bin"
+        return Path(resolve_model())
 
     @classmethod
     def load(cls, path: str | os.PathLike[str] | None = None) -> Config:
-        """Load configuration from a file, falling back to defaults."""
         cfg = cls()
         target = Path(path) if path else cfg.config_file
-        if not target.exists():
-            cfg.whisper_model = str(cfg.default_model)
-            return cfg
-
-        for line in target.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            key = key.strip().lower().replace("-", "_")
-            value = value.strip().strip('"').strip("'")
-            if not hasattr(cfg, key):
-                continue
-            current = getattr(cfg, key)
-            if isinstance(current, bool):
-                setattr(cfg, key, value.lower() in {"1", "true", "yes", "on"})
-            elif isinstance(current, int):
-                setattr(cfg, key, int(value))
-            elif isinstance(current, float):
-                setattr(cfg, key, float(value))
-            else:
-                setattr(cfg, key, value)
-        if not cfg.whisper_model:
-            cfg.whisper_model = str(cfg.default_model)
+        raw_model = ""
+        if target.exists():
+            for line in target.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip().lower().replace("-", "_")
+                value = value.strip().strip('"').strip("'")
+                if key in {"audio_file", "lock_file"}:
+                    setattr(cfg, key, Path(value))
+                    continue
+                if key == "whisper_model":
+                    raw_model = value
+                    continue
+                if not hasattr(cfg, key):
+                    continue
+                current = getattr(cfg, key)
+                if isinstance(current, bool):
+                    setattr(cfg, key, value.lower() in {"1", "true", "yes", "on"})
+                elif isinstance(current, int):
+                    setattr(cfg, key, int(value))
+                elif isinstance(current, float):
+                    setattr(cfg, key, float(value))
+                elif isinstance(current, Path):
+                    setattr(cfg, key, Path(value))
+                else:
+                    setattr(cfg, key, value)
+        cfg.whisper_model = resolve_model(raw_model or cfg.whisper_model)
         return cfg
-
-    def ensure_dirs(self) -> None:
-        """Create config and data directories if missing."""
-        self.config_dir.mkdir(parents=True, exist_ok=True)
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        (self.data_dir / "models").mkdir(parents=True, exist_ok=True)

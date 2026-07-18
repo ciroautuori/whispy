@@ -1,82 +1,135 @@
-"""Clipboard and paste-at-cursor helpers for Whispy.
-
-Detects the active session (Wayland or X11) and pastes text using the
-appropriate toolset. Falls back to printing to stdout when no paste backend
-is installed.
-"""
+"""Copy to the clipboard and paste at the cursor (Wayland / X11)."""
 
 from __future__ import annotations
 
 import os
 import shutil
 import subprocess
+import sys
+import time
+
+# Linux input-event-codes.h
+KEY_LEFTCTRL = 29
+KEY_RIGHTCTRL = 97
+KEY_LEFTSHIFT = 42
+KEY_RIGHTSHIFT = 54
+KEY_LEFTALT = 56
+KEY_RIGHTALT = 100
+KEY_LEFTMETA = 125
+KEY_RIGHTMETA = 126
+KEY_V = 47
 
 
-def _session_type() -> str:
-    """Return the current session type: wayland, x11, or unknown."""
-    return os.environ.get("XDG_SESSION_TYPE", "x11").lower()
+def ydotool_ctrl_v_args() -> list[str]:
+    """ydotool key arguments for Ctrl+V with explicit press/release.
 
-
-def paste_text(text: str) -> bool:
-    """Paste ``text`` at the cursor or copy it to the clipboard.
-
-    Returns True on success, False if no backend was available.
+    NEVER use ``29+47``: ydotool 1.x does strtol→29 and last char≠0 → sticky Ctrl DOWN.
     """
+    return [
+        f"{KEY_LEFTCTRL}:1",
+        f"{KEY_V}:1",
+        f"{KEY_V}:0",
+        f"{KEY_LEFTCTRL}:0",
+    ]
+
+
+def ydotool_release_modifiers_args() -> list[str]:
+    return [
+        f"{KEY_LEFTCTRL}:0",
+        f"{KEY_RIGHTCTRL}:0",
+        f"{KEY_LEFTSHIFT}:0",
+        f"{KEY_RIGHTSHIFT}:0",
+        f"{KEY_LEFTALT}:0",
+        f"{KEY_RIGHTALT}:0",
+        f"{KEY_LEFTMETA}:0",
+        f"{KEY_RIGHTMETA}:0",
+    ]
+
+
+def _ensure_ydotool_socket() -> None:
+    if os.environ.get("YDOTOOL_SOCKET"):
+        return
+    runtime = os.environ.get("XDG_RUNTIME_DIR")
+    if runtime:
+        sock = os.path.join(runtime, ".ydotool_socket")
+        if os.path.exists(sock):
+            os.environ["YDOTOOL_SOCKET"] = sock
+
+
+def _ydotool_key(*events: str) -> bool:
+    if not shutil.which("ydotool"):
+        return False
+    _ensure_ydotool_socket()
+    subprocess.run(["ydotool", "key", *events], check=False)
+    return True
+
+
+def _release_modifiers() -> None:
+    _ydotool_key(*ydotool_release_modifiers_args())
+
+
+def _paste_ctrl_v() -> bool:
+    time.sleep(0.15)
+    _release_modifiers()
+    time.sleep(0.05)
+    ok = _ydotool_key(*ydotool_ctrl_v_args())
+    _release_modifiers()
+    return ok
+
+
+def copy_to_clipboard(text: str) -> bool:
+    """Copy text to the clipboard. Returns True on success."""
     if not text:
         return False
-    session = _session_type()
-    if session == "wayland":
-        return _paste_wayland(text)
-    return _paste_x11(text)
+    session = os.environ.get("XDG_SESSION_TYPE", "").lower()
+    data = text.encode()
 
+    if session == "wayland" or shutil.which("wl-copy"):
+        if shutil.which("wl-copy"):
+            r = subprocess.run(["wl-copy"], input=data, check=False)
+            return r.returncode == 0
+        return False
 
-def _copy_to_clipboard(text: str) -> bool:
-    """Copy text to the clipboard using any available helper."""
-    for tool in ("wl-copy", "xsel", "xclip"):
-        binary = shutil.which(tool)
-        if binary is None:
-            continue
-        if tool == "wl-copy":
-            subprocess.run([binary], input=text.encode(), check=False)
-        elif tool == "xsel":
-            subprocess.run([binary, "-b", "-i"], input=text.encode(), check=False)
-        elif tool == "xclip":
-            subprocess.run([binary, "-selection", "clipboard"], input=text.encode(), check=False)
-        return True
-    print(text)
+    if shutil.which("xsel"):
+        return subprocess.run(["xsel", "-b", "-i"], input=data, check=False).returncode == 0
+    if shutil.which("xclip"):
+        return (
+            subprocess.run(
+                ["xclip", "-selection", "clipboard"],
+                input=data,
+                check=False,
+            ).returncode
+            == 0
+        )
     return False
 
 
-def _paste_wayland(text: str) -> bool:
-    """Paste text on a Wayland session using wtype or ydotool."""
-    copy = shutil.which("wl-copy")
-    if copy is None:
-        print(text)
+def inject_paste() -> bool:
+    """Simulate Ctrl+V (clipboard already filled). Does not touch the clipboard content."""
+    if shutil.which("ydotool") and _paste_ctrl_v():
+        return True
+    if shutil.which("wtype"):
+        r = subprocess.run(["wtype", "-M", "ctrl", "v", "-m", "ctrl"], check=False)
+        if r.returncode == 0:
+            return True
+    if shutil.which("xdotool"):
+        subprocess.run(
+            ["xdotool", "key", "--clearmodifiers", "ctrl+v"],
+            check=False,
+        )
+        return True
+    return False
+
+
+def paste_text(text: str) -> bool:
+    """Copy + attempt auto-paste at the cursor. Returns True if the inject worked."""
+    if not text:
         return False
-    subprocess.run([copy], input=text.encode(), check=False)
-    wtype_bin = shutil.which("wtype")
-    if wtype_bin:
-        subprocess.run([wtype_bin, text], check=False)
+    if not copy_to_clipboard(text):
+        print(text)
+        print("[whispy] clipboard failed — text on stdout", file=sys.stderr)
+        return False
+    if inject_paste():
         return True
-    ydotool_bin = shutil.which("ydotool")
-    if ydotool_bin:
-        subprocess.run([ydotool_bin, "type", text], check=False)
-        return True
-    print(text)
-    return True
-
-
-def _paste_x11(text: str) -> bool:
-    """Paste text on an X11 session using xdotool."""
-    copy = shutil.which("xsel") or shutil.which("xclip")
-    if copy:
-        if copy.endswith("xsel"):
-            subprocess.run([copy, "-b", "-i"], input=text.encode(), check=False)
-        else:
-            subprocess.run([copy, "-selection", "clipboard"], input=text.encode(), check=False)
-    xdotool_bin = shutil.which("xdotool")
-    if xdotool_bin:
-        subprocess.run([xdotool_bin, "key", "Shift+Insert"], check=False)
-        return True
-    print(text)
-    return True
+    print("[whispy] copied to clipboard — press Ctrl+V", file=sys.stderr)
+    return False

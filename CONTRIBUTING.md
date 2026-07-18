@@ -1,63 +1,78 @@
-# Contributing to Whispy
+# Contributing
 
-Thanks for considering a contribution! Whispy is a small, focused project and
-the easier the change is to review, the faster it lands.
+Whispy stays small: **speech → text at the cursor**.
 
-## Getting started
+Before adding code, one question decides it: *does this serve getting a voice to the cursor?* If not, it doesn't go in — and that's fine.
+
+---
+
+## Setup
 
 ```bash
 git clone https://github.com/ciroautuori/whispy.git
 cd whispy
-pip install -e ".[dev]"
+pip install -e '.[dev,ptt]'
 ```
 
-## Code style
+On Arch, prefer the system package for push-to-talk:
 
-- We use [ruff](https://docs.astral.sh/ruff) for linting and formatting.
-  Run `ruff check whispy` and `ruff format whispy` before pushing.
-- Target Python 3.11+ — do not add runtime dependencies on third-party
-  packages unless strictly necessary. Whispy's selling point is a tiny,
-  stdlib-only runtime.
-- Keep modules independent. `audio`, `transcribe`, `paste`, `toggle`, and
-  `config` should each remain importable in isolation.
-- Prefer composition over global state. No module-level mutable singletons.
-
-## Commit messages
-
-Use the [Conventional Commits](https://www.conventionalcommits.org) format:
-
-```
-feat(toggle): handle SIGINT gracefully during recording
-fix(paste): fall back to stdout when wtype missing
-docs(readme): document the server backend
+```bash
+sudo pacman -S python-evdev
+sudo usermod -aG input $USER    # log out and back in
 ```
 
-## Pull requests
+---
 
-1. Open an issue describing what you intend to change (bug, feature, refactor).
-2. Fork the repo and create a branch: `feat/<short-slug>` or `fix/<short-slug>`.
-3. Make your changes, keeping diffs small and focused.
-4. Run `ruff check` and `ruff format` — CI will enforce this.
-5. Add a changelog entry under `CHANGES.md` if the change is user-facing.
-6. Open the PR, linking the issue. Describe how you tested the change.
+## Before opening a PR
 
-## Testing hardware-specific features locally
+```bash
+ruff check whispy tests
+ruff format --check whispy tests
+pytest
+```
 
-Recording and pasting need a real desktop session. For non-hardware logic
-(config parsing, postprocessing, debounce), add unit tests under `tests/`
-using the stdlib `unittest` or `pytest` frameworks. Mock subprocesses.
+Then **actually use it** — dictate a real sentence. The tests never touch a microphone or a keyboard, so they cannot tell you whether the experience is good.
 
-## Reporting issues
+```bash
+whispy ptt                 # foreground, so you see logs while you speak
+tail -f /tmp/whispy.log
+```
 
-Include:
-- OS + desktop (KDE/GNOME/Sway/Hyprland/…)
-- Session type (`echo $XDG_SESSION_TYPE`)
-- `whisper-cli --version` output
-- Relevant lines from `/tmp/whispy.log` if present
-- The exact hotkey binding and how it invokes whispy
+---
 
-## Areas that need help
+## How the tests work
 
-- macOS recording backend (CoreAudio)
-- Windows recording backend (waveapi / WASAPI)
-- Translations of the README and UI strings
+They run anywhere, with no hardware: no microphone, no keyboard, no GPU. `subprocess` calls and `evdev` devices are stubbed. If a change can only be tested with real hardware, that usually means the logic needs separating from the I/O.
+
+| File | Covers |
+|------|--------|
+| `test_audio_header.py` | Repairing `arecord` WAV headers after a kill |
+| `test_paste.py` | `ydotool` arguments — the 1.x parser has traps |
+| `test_notify.py` | Notification replacement, levels, closing |
+| `test_ptt.py` | Key combo parsing, device selection |
+| `test_toggle.py` | Toggle state machine |
+| `test_config.py` | Config parsing and model resolution |
+| `test_transcribe.py` | Transcript cleanup, hallucination filtering |
+
+---
+
+## Style
+
+- **English everywhere** — code, comments, commit messages, user-facing strings
+- Comments explain **why**, not what — especially the `ydotool`, `arecord`, and KDE quirks, which look arbitrary but aren't
+- Module docstrings: one line stating what the module does
+- No mandatory runtime dependencies; `evdev` is an optional extra
+- `ruff` settles formatting, not opinions
+
+---
+
+## Reporting a bug
+
+Logs make a bug fixable:
+
+```bash
+tail -50 /tmp/whispy.log
+journalctl --user -u whispy-ptt -n 50    # push-to-talk
+```
+
+Include your distro, desktop environment, Wayland or X11, whisper build, and model.

@@ -1,268 +1,299 @@
-<div align="center">
+# Whispy
 
-# 🎙️ Whispy
+![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow)
+![Ruff](https://img.shields.io/badge/Ruff-passed-261230?logo=ruff&logoColor=white)
+![Wayland](https://img.shields.io/badge/Wayland-ready-brightgreen)
+![Stars](https://img.shields.io/github/stars/ciroautuori/whispy?style=social)
+![Last Commit](https://img.shields.io/github/last-commit/ciroautuori/whispy)
+![Version](https://img.shields.io/badge/version-0.3.0-green)
 
-**Local speech-to-text + Second Brain for the desktop. Press to record → transcribe → paste, and keep a Notion+Obsidian hybrid brain in one Python app.**
+**Hold a key. Speak. Release. The text lands at your cursor.**
 
-🎤 Dictate anywhere · 🗂️ HyperKanban nested tasks · 📝 Markdown notes · 🔗 Backlinks · 🕸️ Graph view · 📱 Mobile-first · 🐍 Python only
+Local voice dictation for Linux — offline, no account, no subscription.
 
-</div>
+```
+  ┌─ hold Meta+F12 ───────────────────────────────────┐
+  │                                                   │
+  │   🎙  "remind me to buy bread tomorrow"           │
+  │                                                   │
+  └─ release ─────────────────────────────────────────┘
+                       ↓  ~1.5s
+  remind me to buy bread tomorrow▮
+```
 
----
+Whisper runs **on your machine** — on CUDA if you have it. Nothing leaves your computer: no cloud, no telemetry, no account.
 
-## What is Whispy?
-
-Whispy is **two tools in one pure-Python desktop app**:
-
-1. **A dictation toggle** — press a hotkey (`Super+F12`), talk, press again → your words are transcribed locally with `whisper.cpp` and pasted at the cursor. No cloud, no subscription.
-2. **A Second Brain** — a compact desktop webapp (FastAPI + pywebview, *Python only — no Rust, no Tauri, no Electron*) that blends the best of **Notion** (nested HyperKanban boards, properties, databases) and **Obsidian** (markdown notes, `[[wikilink]]` backlinks, graph view).
-
-Everything runs 100% on your machine. The brain is a single JSON file you own.
-
----
-
-## ✨ Features
-
-**Dictation**
-- 🖱️ One hotkey — toggle record / transcribe-and-paste
-- 🔒 Fully offline via `whisper.cpp` (GPU-accelerated when available)
-- ⚡ `whisper-server` (warm model) or `whisper-cli` backends
-- 🐧 Wayland (`wtype`/`ydotool`/`wl-copy`) + X11 (`xdotool`/`xsel`) paste
-- 📝 `whispy ingest` — pipe transcribed text straight into a brain note
-
-**Second Brain**
-- 🌳 **HyperKanban tree** — workspaces, areas, boards, tasks, subtasks nest infinitely; indent/outdent, move, reorder
-- 🗂️ **Kanban view** — tasks grouped into Todo / Doing / Review / Done columns
-- 📝 **Notes view** — Obsidian-style markdown with live backlinks
-- 🔗 **Backlinks** — `[[note title]]` in any body auto-links; see who links back
-- 🕸️ **Graph view** — draggable canvas of all nodes + backlink edges, click to open
-- 📊 **Stats view** — totals, by status/priority/type, overdue count
-- 🔎 **Full-text search** — title, body, tags, descriptions
-- 🌓 Dark/light theme, persisted
-- 📱 Mobile-first responsive UI — works great on a phone-width window
+Built on [whisper.cpp](https://github.com/ggerganov/whisper.cpp), for KDE, GNOME, Hyprland, and any Wayland or X11 desktop.
 
 ---
 
-## Quick start
+## Quick Start
 
-### 1. System prerequisites
-
-| Tool | Why | Install |
-|------|-----|---------|
-| `whisper.cpp` (`whisper-cli` / `whisper-server`) | Speech recognition | `yay -S whisper.cpp-cuda` (Arch) · `brew install whisper-cpp` (mac) |
-| `sox` (`rec`) or `alsa-utils` (`arecord`) | Capture microphone | `sudo pacman -S sox alsa-utils` |
-| `wtype` (Wayland) / `xdotool` (X11) | Paste at cursor | `sudo pacman -S wtype xdotool` |
-| `wl-clipboard` / `xsel` | Clipboard | `sudo pacman -S wl-clipboard xsel` |
-
-### 2. Install Whispy
+### Arch Linux
 
 ```bash
+sudo pacman -S alsa-utils wl-clipboard ydotool libnotify python-evdev
+yay -S whisper.cpp-cuda          # or whisper.cpp for CPU-only
+
 git clone https://github.com/ciroautuori/whispy.git
 cd whispy
 ./install.sh
 ```
 
-…or manually:
+### Debian / Ubuntu / Fedora
 
 ```bash
-pip install -e ".[desktop]"   # desktop = pywebview + Qt/GTK backends
-# or just the core (use a browser to view the brain):
-pip install -e .
+# Debian/Ubuntu — Fedora: swap apt for dnf
+sudo apt install alsa-utils wl-clipboard ydotool libnotify-bin python3-evdev
+
+git clone https://github.com/ciroautuori/whispy.git
+cd whispy
+./install.sh
 ```
 
-### 3. Open the Second Brain desktop app
+`whisper-cli` is not packaged on most distros — build it from [whisper.cpp](https://github.com/ggerganov/whisper.cpp) and make sure it lands on your `PATH`.
+
+### Get a model
 
 ```bash
-whispy brain        # native window (pywebview)
-# …or run the server only and open in a browser:
-whispy serve --port 58182
-```
-
-### 4. (Optional) Dictation setup
-
-```bash
-# Download a model
 mkdir -p ~/.local/share/whispy/models
-curl -L -o ~/.local/share/whispy/models/ggml-large-v3-turbo.bin \
-  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin
+cd ~/.local/share/whispy/models
 
-# Edit ~/.config/whispy/whispy.conf
-# Bind Super+F12 → `whispy` in your desktop settings (KDE/GNOME/Hyprland)
+# small and fast (~150 MB)
+curl -LO https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
+
+# recommended if you have a GPU (~1.6 GB, far more accurate)
+curl -LO https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin
 ```
 
-Press `Super+F12`, talk, press again — text appears at the cursor.
+Whispy picks the model on its own: it prefers `large-v3-turbo` and falls back to `base`.
+
+### Enable push-to-talk
+
+Reading the keyboard requires the `input` group — log out and back in after this:
+
+```bash
+sudo usermod -aG input $USER
+systemctl --user enable --now whispy-ptt
+```
+
+Hold `Meta+F12`, speak, release. That's the whole thing.
 
 ---
 
-## How it works
+## How It Works
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                          Whispy                               │
-│                                                               │
-│   ┌──────────────────┐        ┌────────────────────────────┐   │
-│   │ Dictation toggle │        │   Second Brain (desktop)  │   │
-│   │  Super+F12       │        │                            │   │
-│   │   → record       │        │  FastAPI (:58182)         │   │
-│   │   → whisper.cpp  │        │   + pywebview native window│   │
-│   │   → paste cursor │        │                            │   │
-│   └────────┬─────────┘        │  Tree · Kanban · Notes    │   │
-│            │ whispy ingest   │  Graph · Stats · Search   │   │
-│            └─────────────────►  Backlinks (Obsidian)     │   │
-│                              │  HyperKanban nested tree  │   │
-│                              │  brain.json (single file) │   │
-│                              └────────────────────────────┘   │
+│                          Whispy                              │
+│                                                              │
+│  ┌────────────────────────────────────────────────────┐      │
+│  │              Key listener (evdev)                  │      │
+│  │                                                    │      │
+│  │   key down ──► start arecord ──► /dev/shm (RAM)    │      │
+│  │   key up   ──► stop, then transcribe               │      │
+│  └────────────────────────────────────────────────────┘      │
+│                          │                                   │
+│  ┌────────────────────────────────────────────────────┐      │
+│  │              whisper.cpp (local)                   │      │
+│  │                                                    │      │
+│  │   16 kHz mono WAV → whisper-cli → text             │      │
+│  │   CUDA when available, CPU otherwise               │      │
+│  │   hallucination filter drops silence artifacts     │      │
+│  └────────────────────────────────────────────────────┘      │
+│                          │                                   │
+│  ┌────────────────────────────────────────────────────┐      │
+│  │              Injection                             │      │
+│  │                                                    │      │
+│  │   wl-copy → clipboard → ydotool Ctrl+V → cursor    │      │
+│  │   clipboard always set, so Ctrl+V works regardless │      │
+│  └────────────────────────────────────────────────────┘      │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-Dictation and the brain are deliberately decoupled: you can use either
-one standalone, or bridge them with `whispy ingest` to drop transcribed
-voice notes straight into your knowledge base.
+Audio lives in `/dev/shm` (RAM), is deleted right after transcription, and never touches the disk or the network.
 
 ---
 
-## Architecture
+## Why?
 
-```
-whispy/
-├── __init__.py      # version
-├── __main__.py      # CLI: toggle · record · transcribe · serve · brain · version
-├── toggle.py        # hotkey toggle loop: record ⇄ transcribe+paste
-├── config.py        # whispy.conf loader (dataclass)
-├── audio.py         # recording backend (sox / arecord)
-├── transcribe.py    # whisper.cpp backends (server / cli)
-├── paste.py         # clipboard injection (wayland / x11 / fallback)
-├── store.py         # HyperKanban tree store (JSON, Notion+Obsidian model)
-├── server.py        # FastAPI: tree/kanban/graph/backlinks/stats/search/ingest
-└── webapp.py        # pywebview desktop window launcher
+Linux desktop dictation either doesn't exist or ships your voice to someone else's server. Whispy does one thing: it takes what you say and puts it where your cursor is.
 
-web/
-├── index.html       # mobile-first single-page UI
-├── styles.css       # dark/light theme
-└── main.js          # tree, kanban, notes, graph, editor, search
-```
+- **Fully local** — whisper.cpp on your hardware, zero network calls
+- **Fast** — ~1.5s for a sentence with `large-v3-turbo` on GPU
+- **True push-to-talk** — hold to record, release to transcribe, like a radio
+- **Quiet** — one notification that updates itself, then disappears
+- **Small** — ~700 lines of Python, no mandatory runtime dependencies
+- **Wayland-first** — works where `xdotool` cannot reach
 
-Every module is importable and testable on its own. No global state in the
-core logic; the UI is a thin vanilla-JS client talking to the REST API.
+### Why push-to-talk needs evdev
+
+Global shortcuts in KDE and GNOME report only the **key press**, never the release. Push-to-talk is therefore impossible through a normal desktop hotkey. Whispy reads the keyboard directly through `evdev`, which reports both edges — that's the only reason the `input` group is needed.
 
 ---
 
-## CLI
+## Modes
+
+| Mode | Command | How it stops | Needs |
+|------|---------|--------------|-------|
+| **Push-to-talk** | `whispy ptt` | when you release the key | `evdev` + `input` group |
+| **Toggle** | `whispy` | second press, or `MAX_RECORD_SECONDS` | nothing extra |
+
+### Push-to-talk (recommended)
 
 ```bash
-whispy                # toggle record/transcribe+paste (bind to a hotkey)
-whispy record         # force-start a recording
-whispy transcribe     # transcribe the latest recording and paste
-whispy serve          # run the Second Brain REST+UI server
-whispy brain          # open the Second Brain in a native desktop window
-whispy version        # print the installed version
-python -m whispy      # same as `whispy`
+systemctl --user enable --now whispy-ptt    # survives reboots
+journalctl --user -u whispy-ptt -f          # watch it work
 ```
+
+The daemon idles at zero cost while you're not speaking.
+
+### Toggle
+
+Press once to start, press again to transcribe. If you forget the second press, it stops on its own after `MAX_RECORD_SECONDS`.
+
+Bind `/home/YOUR_USER/.local/bin/whispy` to a shortcut — **use the absolute path**: KDE hotkeys run with `PATH=/usr/bin:/bin` and won't find the command otherwise.
 
 ---
 
-## REST API
+## CLI Commands
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/` | Web UI |
-| `GET` | `/api/tree` | Nested tree (HyperKanban) |
-| `GET` | `/api/nodes/{id}` | Single node + children |
-| `POST` | `/api/nodes` | Create a node |
-| `PATCH` | `/api/nodes/{id}` | Update a node |
-| `DELETE` | `/api/nodes/{id}` | Delete a node (+ subtree) |
-| `POST` | `/api/nodes/{id}/move` | Re-parent / reorder |
-| `POST` | `/api/nodes/{id}/indent` | Indent / outdent |
-| `POST` | `/api/nodes/{id}/toggle` | Cycle status (todo→doing→done) |
-| `GET` | `/api/search?q=` | Full-text search |
-| `GET` | `/api/graph` | Nodes + backlink edges |
-| `GET` | `/api/backlinks/{id}` | Nodes linking to this one |
-| `GET` | `/api/stats` | Aggregate statistics |
-| `POST` | `/api/ingest` | Create a note from text (dictation bridge) |
-| `GET` | `/health` | Health check |
+| Command | Description |
+|---------|-------------|
+| `whispy` | One toggle step: start recording, or stop and transcribe |
+| `whispy ptt` | Push-to-talk in the foreground (useful for debugging) |
+| `whispy version` | Print the version |
 
----
-
-## Second Brain model
-
-Inspired by **Notion** (databases, properties, kanban) and **Obsidian**
-(markdown + wikilinks + graph), and by the **HyperTask** nested-tree
-task model:
-
-```
-Workspace
-└── Area
-    └── Board
-        └── Task
-            └── Subtask … (infinite)
-Note (anywhere; markdown + [[backlinks]])
-```
-
-Each node carries: title, markdown body, type, status, priority, due date,
-tags, position (for ordering), and a parent pointer for the nested tree.
-`[[Wikilink Title]]` inside any body creates a backlink automatically —
-click through in the editor or visualize all relationships in the graph view.
+Logs go to `/tmp/whispy.log` — `tail -f` it while you dictate.
 
 ---
 
 ## Configuration
 
-File: `${XDG_CONFIG_HOME:-~/.config}/whispy/whispy.conf`
-Brain: `${XDG_DATA_HOME:-~/.local/share}/whispy/brain.json`
+`~/.config/whispy/whispy.conf`, all keys optional:
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `BACKEND` | `cli` | `cli` (whisper-cli) or `server` (warm whisper-server) |
-| `WHISPER_MODEL` | `…/models/ggml-base.bin` | Path to a `ggml-*.bin` model |
-| `WHISPER_LANGUAGE` | `auto` | ISO code (`it`, `en`, …) or `auto` |
-| `WHISPER_THREADS` | `4` | CPU threads for inference |
-| `AUTOPASTE` | `1` | `1` → paste at cursor; `0` → print to stdout |
-| `SILENCE_DURATION` | `1.5` | Silence seconds before auto-stop (sox) |
-| `SILENCE_THRESHOLD` | `3` | Silence threshold percent (sox) |
-| `MAX_RECORD_SECONDS` | `120` | Hard cap |
-| `KEEP_AUDIO` | `0` | Keep the WAV for debugging |
-| `RECORD_DEVICE` | `default` | ALSA device name (arecord) |
+```ini
+WHISPER_MODEL=                  # empty = auto-detect
+WHISPER_LANGUAGE=en             # en, it, … ("auto" to detect)
+WHISPER_THREADS=8
+AUTOPASTE=1                     # 0 = clipboard only, no injection
+PTT_KEY=META+F12                # push-to-talk key
+NOTIFY_LEVEL=normal             # normal | quiet (errors only) | off
+MAX_RECORD_SECONDS=8            # toggle safety net
+KEEP_AUDIO=0                    # 1 keeps the WAV for inspection
+```
+
+### Choosing the key
+
+`PTT_KEY` takes a single key or a combo: `MENU`, `RIGHTCTRL`, `META+F12`, `CTRL+ALT+K`. Names follow `evdev`, with `META`, `SUPER`, `CTRL`, `ALT`, and `SHIFT` as convenience aliases.
+
+The **Menu key** (☰) is an excellent choice: almost nothing else uses it, so it never collides.
+
+> If you pick a combo built on `META`, make sure your desktop hasn't already bound it — otherwise one press fires two things.
+
+### Notification levels
+
+| Level | Behavior |
+|-------|----------|
+| `normal` | One bubble that updates through the cycle, closed on success |
+| `quiet` | Errors only |
+| `off` | Silence |
+
+On success with auto-paste, the notification is **closed** rather than repeating text you can already see. Errors stay on screen.
+
+---
+
+## Troubleshooting
+
+### Push-to-talk doesn't react
+
+```bash
+systemctl --user status whispy-ptt
+journalctl --user -u whispy-ptt -n 30
+```
+
+| Cause | Fix |
+|-------|-----|
+| Not in the `input` group | `sudo usermod -aG input $USER`, then **log out and back in** |
+| Keyboard plugged in after start | `systemctl --user restart whispy-ptt` |
+| `PTT_KEY` already used by the desktop | Pick another one, e.g. `MENU` |
+
+### It transcribes but doesn't paste
+
+`ydotoold` must be running:
+
+```bash
+systemctl --user enable --now ydotoold
+```
+
+The text is in the clipboard either way — `Ctrl+V` always works. Set `AUTOPASTE=0` to disable injection entirely.
+
+### "No text" or wrong transcriptions
+
+- Speak for **at least one second**: anything under `0.7s` is discarded
+- Set `WHISPER_LANGUAGE` explicitly instead of leaving `auto`
+- Switch to `large-v3-turbo`; `base` is weak on non-English speech
+- The last failed recording is kept at `/tmp/whispy-last-failed.wav`
+
+### It feels slow
+
+```bash
+whisper-cli --help | grep -i gpu     # CUDA build?
+nvidia-smi                            # GPU visible?
+```
+
+A CPU build with `large-v3-turbo` takes seconds, not milliseconds — use `ggml-base.bin` or install a CUDA build.
+
+If something else is holding your VRAM (a local model server, a game), the GPU build cannot allocate its buffers. Whispy notices and retries on CPU, so dictation still works — just slower. Free the VRAM to get the fast path back.
+
+If you're on **toggle** mode and the wait is always identical, that's not slowness: it's `MAX_RECORD_SECONDS` expiring because the second press never came.
+
+---
+
+## Requirements
+
+| Tool | Purpose | Required |
+|------|---------|----------|
+| `whisper-cli` | Transcription | Yes |
+| `arecord` (alsa-utils) | Recording | Yes — `sox`/`rec` works as fallback |
+| `wl-copy` (wl-clipboard) | Clipboard | Yes |
+| `ydotool` + `ydotoold` | Auto-paste on Wayland | Only for `AUTOPASTE=1` |
+| `notify-send` (libnotify) | Notifications | Only for `NOTIFY_LEVEL≠off` |
+| `python-evdev` | Reading the keyboard | Only for push-to-talk |
+
+Python 3.11+. No mandatory Python runtime dependencies — `evdev` is an optional extra.
 
 ---
 
 ## Development
 
 ```bash
-git clone https://github.com/ciroautuori/whispy.git
-cd whispy
-pip install -e ".[dev]"
-ruff check whispy && ruff format whispy
-pytest -q
-whispy brain      # launch the app and click around
+pip install -e '.[dev,ptt]'
+pytest                                          # no hardware required
+ruff check whispy tests && ruff format --check whispy tests
 ```
+
+Tests stub out `subprocess` and `evdev` devices, so they run anywhere — no microphone, no keyboard, no GPU. They cover WAV header repair, ydotool argument parsing, config loading, notification replacement, key combo parsing, and device selection.
+
+Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Whispy stays small: if a feature doesn't serve *speech → cursor*, it probably doesn't belong.
 
 ---
 
-## Tech stack
+## Tech Stack
 
-- **Python 3.11+** (stdlib + FastAPI at runtime; pywebview for the desktop window)
-- **[FastAPI](https://fastapi.tiangola.com/)** — REST API for the brain
-- **[uvicorn](https://www.uvicorn.org/)** — ASGI server
-- **[pywebview](https://pywebview.flowrl.com/)** — native desktop window (Qt/GTK/WebKit/EdgeChromium)
-- **[whisper.cpp](https://github.com/ggerganov/whisper.cpp)** — local speech-to-text
-- **sox / ALSA** — audio capture · **wtype / ydotool / xdotool** — keyboard injection
-- **Vanilla HTML/CSS/JS** — zero frontend build, no node_modules
+- **[whisper.cpp](https://github.com/ggerganov/whisper.cpp)** — local transcription, CUDA-accelerated
+- **[evdev](https://python-evdev.readthedocs.io/)** — raw keyboard events, press *and* release
+- **[ydotool](https://github.com/ReimuNotMoe/ydotool)** — keystroke injection on Wayland
+- **ALSA / wl-clipboard / libnotify** — recording, clipboard, notifications
+- **Python 3.11+** — standard library only at runtime
 
-## Roadmap
-
-- [ ] `whispy-server` warm-model daemon for sub-second dictation
-- [ ] Transclusion and live markdown preview in the editor
-- [ ] Daily notes / calendar view
-- [ ] Notion API + Google Tasks sync
-- [ ] Noise suppression via RNNoise
-- [ ] macOS / Windows native recording backends
-- [ ] PWA / installable on mobile via the served UI
-- [ ] Vector search over note bodies
+---
 
 ## License
 
-MIT © [Ciro Autuori](https://github.com/ciroautuori)
+MIT
 
 ---
 
-Built because talking is faster than typing, and your knowledge belongs to you.
+Built by [Ciro Autuori](https://github.com/ciroautuori).

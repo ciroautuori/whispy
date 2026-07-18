@@ -1,0 +1,32 @@
+name: 💡 Idea
+description: Propose an improvement
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Whispy does one thing: **speech → text at the cursor**.
+        Ideas that make *that* better get priority.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does it solve
+      description: Start from what blocks you today, not from the solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: How you see it working
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Does it stay in scope?
+      options:
+        - label: It serves getting speech to the cursor (not a feature of its own)
+          required: true

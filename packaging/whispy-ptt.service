@@ -1,0 +1,15 @@
+[Unit]
+Description=Whispy push-to-talk (hold to dictate)
+Documentation=https://github.com/ciroautuori/whispy
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=__WHISPY_BIN__ ptt
+Restart=on-failure
+RestartSec=3
+Environment=PATH=__BIN_DIR__:/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=graphical-session.target
