@@ -270,8 +270,7 @@ Python 3.11+. No mandatory Python runtime dependencies — `evdev` is an optiona
 
 ```bash
 pip install -e '.[dev,ptt]'
-pytest                                          # no hardware required
-ruff check whispy tests && ruff format --check whispy tests
+./scripts/check.sh          # lint + format + tests, no hardware required
 ```
 
 Tests stub out `subprocess` and `evdev` devices, so they run anywhere — no microphone, no keyboard, no GPU. They cover WAV header repair, ydotool argument parsing, config loading, notification replacement, key combo parsing, and device selection.

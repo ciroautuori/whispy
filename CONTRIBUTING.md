@@ -26,9 +26,7 @@ sudo usermod -aG input $USER    # log out and back in
 ## Before opening a PR
 
 ```bash
-ruff check whispy tests
-ruff format --check whispy tests
-pytest
+./scripts/check.sh      # lint + format + tests, the same checks a reviewer applies
 ```
 
 Then **actually use it** — dictate a real sentence. The tests never touch a microphone or a keyboard, so they cannot tell you whether the experience is good.

@@ -11,11 +11,10 @@
 <!-- What you actually ran. Paste the output, not just "works". -->
 
 ```
-$ pytest -q
+$ ./scripts/check.sh
 
 ```
 
-- [ ] `ruff check whispy tests && ruff format --check whispy tests` is clean
-- [ ] `pytest` is green
+- [ ] `./scripts/check.sh` passes
 - [ ] Actually used it — dictated a real sentence, not just ran the tests
 - [ ] README / CHANGES updated if visible behavior changed

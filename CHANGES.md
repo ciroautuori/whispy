@@ -16,8 +16,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 - **Automatic CPU fallback**: when a GPU build cannot allocate its buffers —
   typically because another process (a model server, a game) is holding VRAM —
   transcription retries on CPU instead of surfacing a raw GGML assertion.
-- GitHub Actions CI — lint and tests on Python 3.11–3.13, plus a package build —
-  with issue and pull request templates.
+- `scripts/check.sh` — lint, format check, and tests in one command, plus issue
+  and pull request templates.
 - 33 new tests covering notifications, combo parsing, device selection, and the
   GPU-to-CPU fallback.
 
