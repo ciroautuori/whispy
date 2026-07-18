@@ -15,7 +15,7 @@ Local voice dictation for Linux — offline, no account, no subscription.
 ```
   ┌─ hold Meta+F12 ───────────────────────────────────┐
   │                                                   │
-  │   🎙  "remind me to buy bread tomorrow"           │
+  │   🎙  "remind me to buy bread tomorrow"            │
   │                                                   │
   └─ release ─────────────────────────────────────────┘
                        ↓  ~1.5s
