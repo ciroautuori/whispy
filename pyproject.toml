@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "whispy"
-version = "0.3.0"
+version = "0.4.0"
 description = "Dettatura vocale locale per Linux — tieni premuto, parla, rilascia. Zero cloud."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -34,7 +34,6 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["ruff>=0.6", "pytest>=8.0"]
-# push-to-talk: legge la tastiera via evdev (su Arch: pacman -S python-evdev)
 ptt = ["evdev>=1.6"]
 groq = ["groq>=0.9"]
 openai = ["openai>=1.0"]
@@ -53,6 +52,7 @@ Changelog = "https://github.com/ciroautuori/whispy/blob/main/CHANGES.md"
 
 [project.scripts]
 whispy = "whispy.__main__:main"
+whispy-gui = "whispy.gui:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["whispy"]

@@ -1,4 +1,4 @@
-"""``python -m whispy`` / ``whispy`` — dictation toggle."""
+"""``python -m whispy`` / ``whispy`` — dictation toggle and GUI control panel."""
 
 from __future__ import annotations
 
@@ -11,25 +11,30 @@ from .toggle import toggle
 def main() -> int:
     if len(sys.argv) > 1 and sys.argv[1] in {"-h", "--help", "help"}:
         print("whispy — press to record, press to transcribe and paste")
-        print("usage: whispy | whispy ptt | whispy version | whispy-hotkey")
+        print("usage: whispy | whispy gui | whispy ptt | whispy version")
+        print("  gui = open desktop control panel to manage providers & keys")
         print("  ptt = push-to-talk: hold the key down, release to transcribe")
         return 0
     if len(sys.argv) > 1 and sys.argv[1] == "version":
         print(__version__)
         return 0
+    if len(sys.argv) > 1 and sys.argv[1] in {"gui", "config"}:
+        from .gui import main as gui_main
+
+        return gui_main()
     if len(sys.argv) > 1 and sys.argv[1] == "ptt":
         from .ptt import run
 
         return run()
     if len(sys.argv) > 1:
         print(
-            f"[whispy] unknown: {sys.argv[1]!r} — use: whispy | whispy version",
+            f"[whispy] unknown: {sys.argv[1]!r} — use: whispy | whispy gui | whispy version",
             file=sys.stderr,
         )
         return 1
     try:
         return toggle()
-    except Exception as exc:  # noqa: BLE001 — the hotkey must not die silently
+    except Exception as exc:  # noqa: BLE001
         from pathlib import Path
 
         msg = f"crash: {exc!r}"
