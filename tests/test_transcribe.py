@@ -1,8 +1,7 @@
 from pathlib import Path
-import subprocess
-import shutil
+
 from whispy.config import Config
-from whispy.providers.local import build_whisper_cmd, clean_transcript, LocalProvider
+from whispy.providers.local import build_whisper_cmd, clean_transcript
 
 
 def test_clean_strips_timestamps_and_parens() -> None:
