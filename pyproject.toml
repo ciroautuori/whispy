@@ -36,6 +36,9 @@ dependencies = []
 dev = ["ruff>=0.6", "pytest>=8.0"]
 # push-to-talk: legge la tastiera via evdev (su Arch: pacman -S python-evdev)
 ptt = ["evdev>=1.6"]
+groq = ["groq>=0.9"]
+openai = ["openai>=1.0"]
+faster-whisper = ["faster-whisper>=1.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
