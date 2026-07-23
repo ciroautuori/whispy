@@ -23,7 +23,7 @@ from .transcribe import transcribe, wav_duration_s
 # KDE double-fire: do not stop before MIN_AGE_STOP
 DEBOUNCE_START = 0.35
 MIN_AGE_STOP = 1.0
-MIN_SECONDS = 0.7
+MIN_SECONDS = 0.5
 # if there is no second press, close and transcribe on our own
 DEFAULT_AUTOSTOP = 8
 
