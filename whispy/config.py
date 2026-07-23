@@ -52,6 +52,8 @@ def resolve_model(explicit: str = "") -> str:
 
 @dataclass
 class Config:
+    provider: str = "local"
+    api_key: str = ""
     whisper_model: str = ""
     whisper_language: str = "it"
     whisper_threads: int = 8

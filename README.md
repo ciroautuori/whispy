@@ -169,6 +169,26 @@ Logs go to `/tmp/whispy.log` — `tail -f` it while you dictate.
 
 ---
 
+## Providers
+
+Whispy supports multiple transcription backends. You can choose the provider by setting `PROVIDER=` in your configuration.
+
+| Provider | `PROVIDER=` | Description | Needs |
+|----------|-------------|-------------|-------|
+| **Local** | `local` | Default. Uses `whisper.cpp` locally. | `whisper-cli` on `PATH` |
+| **Groq** | `groq` | Cloud. Free, ultra-fast `whisper-large-v3`. | `groq` package + `API_KEY` |
+| **OpenAI** | `openai` | Cloud. Official Whisper API (high quality). | `openai` package + `API_KEY` |
+| **Faster-Whisper** | `faster-whisper` | Local Python-only alternative to `whisper.cpp`. | `faster-whisper` package |
+
+To install the dependencies for a cloud/Python provider:
+```bash
+pip install 'whispy[groq]'          # for Groq
+pip install 'whispy[openai]'        # for OpenAI
+pip install 'whispy[faster-whisper]' # for Faster-Whisper
+```
+
+---
+
 ## Configuration
 
 `~/.config/whispy/whispy.conf`, all keys optional:
