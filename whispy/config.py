@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 
 
@@ -52,8 +52,6 @@ def resolve_model(explicit: str = "") -> str:
 
 @dataclass
 class Config:
-    provider: str = "local"
-    api_key: str = ""
     whisper_model: str = ""
     whisper_language: str = "it"
     whisper_threads: int = 8
@@ -64,6 +62,15 @@ class Config:
     keep_audio: bool = False
     ptt_key: str = "META+F12"
     notify_level: str = "normal"  # normal | quiet | off
+    # multiprovider: local | openai | groq | openrouter | huggingface | google | nvidia | ollama
+    # cloud providers read their API key from an env var (see providers/__init__.py),
+    # never from this file. All fields below are plain strings, so the generic
+    # dispatch in load() (further down) already parses them — no changes needed there.
+    provider: str = "local"
+    cloud_model: str = ""  # override the provider's default model; empty = use its default
+    ollama_host: str = "http://localhost:11434"  # only used when provider=ollama
+    nvidia_server: str = ""  # self-hosted NIM "host:port"; empty = NVIDIA's cloud endpoint
+    nvidia_function_id: str = ""  # required for NVIDIA's cloud endpoint — see providers/nvidia.py
     audio_file: Path = field(default_factory=_default_audio)
     lock_file: Path = field(default_factory=_default_lock)
 
@@ -77,6 +84,13 @@ class Config:
 
     @classmethod
     def load(cls, path: str | os.PathLike[str] | None = None) -> Config:
+        # deferred import: envfile.py imports _config_dir from this module,
+        # so a top-level import here would be circular. Same lazy-import
+        # pattern the project already uses in ptt.py/toggle.py.
+        from .envfile import load_env_file
+
+        load_env_file()  # KEY=value from whispy.env -> os.environ, never overriding
+
         cfg = cls()
         target = Path(path) if path else cfg.config_file
         raw_model = ""
@@ -109,3 +123,28 @@ class Config:
                     setattr(cfg, key, value)
         cfg.whisper_model = resolve_model(raw_model or cfg.whisper_model)
         return cfg
+
+    def save(self, path: str | os.PathLike[str] | None = None) -> None:
+        """Write this config back to whispy.conf as KEY=value lines.
+
+        ``whisper_model`` is the one field skipped when blank: it's normally
+        auto-resolved fresh on every load() via resolve_model(), and writing
+        out whatever it resolved to *this time* would pin that guess forever
+        instead of letting future loads keep re-detecting.
+        """
+        target = Path(path) if path else self.config_file
+        target.parent.mkdir(parents=True, exist_ok=True)
+        skip = {"audio_file", "lock_file"}
+        lines = []
+        for f in fields(self):
+            if f.name in skip:
+                continue
+            if f.name == "whisper_model" and not self.whisper_model.strip():
+                continue
+            value = getattr(self, f.name)
+            key = f.name.upper()
+            if isinstance(value, bool):
+                lines.append(f"{key}={'true' if value else 'false'}")
+            else:
+                lines.append(f"{key}={value}")
+        target.write_text("\n".join(lines) + "\n", encoding="utf-8")
