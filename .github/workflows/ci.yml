@@ -8,17 +8,20 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: Pytest & Ruff
+    runs-on: [self-hosted, soliso, whispy]
+
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install ruff pytest
-          pip install -e .
+          python -m pip install --upgrade pip --quiet
+          pip install ruff pytest --quiet
+          pip install -e . --quiet
+
       - name: Lint with Ruff
         run: ruff check .
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
