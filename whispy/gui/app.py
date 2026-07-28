@@ -25,8 +25,10 @@ class WhispyGUI:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("Whispy — Control Panel")
-        self.root.geometry("820x640")
-        self.root.minsize(720, 560)
+        # sized from the panel's own requested geometry (898x684 with all nine
+        # provider rows): anything narrower clipped the key fields on the right
+        self.root.geometry("920x720")
+        self.root.minsize(820, 600)
 
         state = FormState.load()
         self._state = state

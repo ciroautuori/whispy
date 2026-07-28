@@ -3,6 +3,12 @@
 Owns the bookkeeping the GUI used to inline: enabling/disabling the other test
 buttons while one is running, the double-click-to-stop event, and routing
 results back onto the Tk main loop via :meth:`root.after`.
+
+``ttk`` appears here only as a type annotation, and ``from __future__ import
+annotations`` keeps annotations unevaluated — so it is imported under
+``TYPE_CHECKING`` and this module stays importable on a machine with no Tk.
+That is what the docstring above means by "no Tk coupling": ``root`` is any
+object with ``.after()``, which is also how the tests drive it.
 """
 
 from __future__ import annotations
@@ -12,7 +18,10 @@ import os
 import threading
 import time
 from pathlib import Path
-from tkinter import ttk
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # ttk is only ever an annotation here — see the note below
+    from tkinter import ttk
 
 from ..audio import fix_wav_header, start_recording, stop_recording
 from ..config import Config
@@ -57,6 +66,19 @@ class TestRunner:
         ).start()
 
     def _worker(self, name: str, button: ttk.Button, build_config, get_key_value) -> None:
+        """Thread entry point. Always emits exactly one result.
+
+        An uncaught exception in here would die inside the thread, leaving
+        ``testing_name`` set forever — every Test button stuck disabled with
+        no message on screen. So everything funnels through this wrapper.
+        """
+        try:
+            msg, ok = self._run_test(name, build_config, get_key_value)
+        except Exception as exc:  # noqa: BLE001 — a dead worker would freeze the panel
+            msg, ok = f"✗ {type(exc).__name__}: {exc or exc!r}", False
+        self._emit(name, button, msg, ok=ok)
+
+    def _run_test(self, name: str, build_config, get_key_value) -> tuple[str, bool]:
         cfg: Config = build_config()
         cfg.provider = name
         cfg.audio_file = Path("/tmp/whispy-gui-test.wav")
@@ -71,36 +93,27 @@ class TestRunner:
         try:
             proc = start_recording(cfg)
         except RuntimeError as exc:
-            self._emit(name, button, f"✗ {exc}", ok=False)
-            return
+            return f"✗ {exc}", False
 
-        self._stop_event.wait(timeout=RECORD_SECONDS)
+        if self._stop_event is not None:
+            self._stop_event.wait(timeout=RECORD_SECONDS)
         with contextlib.suppress(Exception):
             stop_recording(proc.pid)
         time.sleep(0.12)
 
         if not fix_wav_header(cfg.audio_file):
-            self._emit(name, button, "✗ invalid audio — try again", ok=False)
-            return
+            return "✗ invalid audio — try again", False
         if not cfg.audio_file.exists() or cfg.audio_file.stat().st_size <= 44:
-            self._emit(name, button, "✗ no audio captured", ok=False)
-            return
+            return "✗ no audio captured", False
 
         try:
             text = transcribe(cfg, cfg.audio_file)
-        except RuntimeError as exc:
-            self._emit(name, button, f"✗ {exc}", ok=False)
-            return
+        except Exception as exc:  # noqa: BLE001 — same reason as toggle.py
+            return f"✗ {exc or exc!r}", False
 
         if text:
-            self._emit(name, button, f"✓ {name}: “{text}”", ok=True)
-        else:
-            self._emit(
-                name,
-                button,
-                "✓ connected, but heard no speech — try again, closer to the mic",
-                ok=True,
-            )
+            return f"✓ {name}: “{text}”", True
+        return "✓ connected, but heard no speech — try again, closer to the mic", True
 
     def _emit(self, name: str, button: ttk.Button, msg: str, *, ok: bool) -> None:
         def _update():

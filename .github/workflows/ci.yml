@@ -6,22 +6,48 @@ on:
   pull_request:
     branches: [ main ]
 
+# Least privilege: the job only ever reads the repository.
+permissions:
+  contents: read
+
+# One run per branch; a new push supersedes the one still going.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Pytest & Ruff
     runs-on: [self-hosted, soliso, whispy]
+    timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      # clean: true (the default) wipes untracked files — including the venv
+      # from the previous run, which a self-hosted runner would otherwise keep.
+      - uses: actions/checkout@v7
+
+      # A self-hosted runner keeps its filesystem between jobs. Installing into
+      # a throwaway venv keeps runs from contaminating each other or the host
+      # Python, and makes `pip install -e .` safe to repeat.
+      - name: Set up a clean virtualenv
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip --quiet
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip --quiet
-          pip install ruff pytest --quiet
-          pip install -e . --quiet
+          .venv/bin/python -m pip install -e '.[dev]' --quiet
+          # evdev is a C extension. Where the runner has no toolchain the
+          # push-to-talk tests skip instead of failing the build — the warning
+          # and the skip count below say so out loud.
+          .venv/bin/python -m pip install -e '.[ptt]' --quiet \
+            || echo "::warning::evdev unavailable — push-to-talk tests will be skipped"
 
       - name: Lint with Ruff
-        run: ruff check .
+        run: .venv/bin/python -m ruff check .
+
+      - name: Check formatting
+        run: .venv/bin/python -m ruff format --check .
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: .venv/bin/python -m pytest tests/ -v --tb=short -rs

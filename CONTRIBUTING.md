@@ -49,8 +49,24 @@ They run anywhere, with no hardware: no microphone, no keyboard, no GPU. `subpro
 | `test_notify.py` | Notification replacement, levels, closing |
 | `test_ptt.py` | Key combo parsing, device selection |
 | `test_toggle.py` | Toggle state machine |
+| `test_integration_record.py` | Record → stop → transcribe, with whisper mocked |
 | `test_config.py` | Config parsing and model resolution |
 | `test_transcribe.py` | Transcript cleanup, hallucination filtering |
+| `test_providers.py` | Every backend in the registry resolves and has the right signature |
+| `test_error_surfacing.py` | Failures reach the log, the notification, and the GUI |
+| `test_gui_state.py` | The Tk-free ViewModel behind the control panel |
+| `test_cli.py` | Every argv shape, and version consistency |
+
+### A rule paid for in production
+
+`v0.4.0` shipped with **every** transcription raising `ImportError`, and the
+suite was green: each test mocked `whispy.toggle.transcribe`, so nothing ever
+called `get_provider()`. Mocking the seam under test proves only that the mock
+works.
+
+So: if you add a name that something looks up at runtime — a provider, a config
+key, a CLI subcommand — add the test that *resolves* it. `test_providers.py` is
+the shape to copy.
 
 ---
 

@@ -153,10 +153,9 @@ def toggle(cfg: Config | None = None) -> int:
     cfg = cfg or Config.load()
     lock = cfg.lock_file
     deb = Path("/tmp/whispy-debounce")
+    # Honour whatever the user configured (the GUI exposes 3–300s): silently
+    # rewriting anything above 30s to 8s made the setting look broken.
     max_s = cfg.max_record_seconds if cfg.max_record_seconds > 0 else DEFAULT_AUTOSTOP
-    # practical cap for dictation (120 was too much → looked stuck)
-    if max_s > 30:
-        max_s = DEFAULT_AUTOSTOP
 
     GATE.touch(exist_ok=True)
     gate_f = GATE.open("r+")
@@ -254,14 +253,19 @@ def _transcribe_and_paste(cfg: Config) -> int:
 
     if dur < MIN_SECONDS:
         _log(f"too short ({dur:.2f}s)")
-        _notify(f"Too short ({dur:.1f}s). Speak for at least 2 seconds.", "normal")
+        _notify(f"Too short ({dur:.1f}s) — hold the key for at least {MIN_SECONDS:g}s", "normal")
         return 1
 
+    # Deliberately broad: a provider that fails to import (ImportError) or a
+    # backend raising something unexpected must still reach the user as a
+    # notification. Narrowing this to RuntimeError once made every failure
+    # silent — recording worked, the transcript never appeared, nothing logged.
     try:
         text = transcribe(cfg, wav)
-    except RuntimeError as exc:
-        _log(str(exc))
-        _notify(str(exc)[:120], "critical", timeout_ms=6000)
+    except Exception as exc:  # noqa: BLE001
+        msg = str(exc) or repr(exc)
+        _log(f"transcribe failed [{type(exc).__name__}]: {msg}")
+        _notify(msg[:120], "critical", timeout_ms=6000)
         return 1
 
     if not text:

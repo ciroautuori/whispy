@@ -10,10 +10,10 @@ fail=0
 step() { printf '\n\033[1m→ %s\033[0m\n' "$1"; }
 
 step "ruff check"
-"$PY" -m ruff check whispy tests || fail=1
+"$PY" -m ruff check . || fail=1        # `.`, exactly like CI — not just whispy/ + tests/
 
 step "ruff format --check"
-"$PY" -m ruff format --check whispy tests || fail=1
+"$PY" -m ruff format --check . || fail=1
 
 step "pytest"
 "$PY" -m pytest -q || fail=1

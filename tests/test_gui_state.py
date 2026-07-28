@@ -109,3 +109,23 @@ def test_raw_whisper_model_line_returns_blank_when_unset(tmp_path: Path) -> None
 
 def test_raw_whisper_model_line_blank_when_file_missing(tmp_path: Path) -> None:
     assert raw_whisper_model_line(tmp_path / "nope.conf") == ""
+
+
+def test_state_imports_on_a_machine_without_tk(monkeypatch) -> None:
+    """The docstring above promises "runs without a display" — enforce it.
+
+    CI on a headless server failed here: ``whispy/gui/__init__.py`` eagerly
+    imported the View, so ``import whispy.gui.state`` pulled in tkinter and
+    died on ``libtk8.6.so: cannot open shared object file``.
+    """
+    import importlib
+    import sys
+
+    for name in [m for m in sys.modules if m.startswith(("whispy.gui", "tkinter", "_tkinter"))]:
+        monkeypatch.delitem(sys.modules, name, raising=False)
+    # make `import tkinter` fail exactly as it does where Tk isn't installed
+    monkeypatch.setitem(sys.modules, "_tkinter", None)
+
+    state = importlib.import_module("whispy.gui.state")
+    assert state.FormState().provider == "local"
+    assert "tkinter" not in sys.modules

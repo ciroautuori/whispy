@@ -39,7 +39,8 @@ mkdir -p "$CONFIG_DIR" "$DATA_DIR/models" "$APP_DIR" "$UNIT_DIR"
 
 if [[ ! -f "$CONFIG_DIR/whispy.conf" ]]; then
     cat > "$CONFIG_DIR/whispy.conf" <<'CONF'
-# Whispy — every key is optional
+# Whispy — every key is optional. Edit by hand, or run: whispy gui
+PROVIDER=local                  # local = offline. `whispy providers` lists them all
 WHISPER_MODEL=                  # empty = auto-detect
 WHISPER_LANGUAGE=en             # en, it, … ("auto" to detect)
 WHISPER_THREADS=8
@@ -127,15 +128,43 @@ if ! id -nG "$USER" | grep -qw input; then
     echo "    sudo usermod -aG input $USER    # then log out and back in"
 fi
 
+# --- model check ---
+# The most common "I installed it and nothing happens": there is no model on
+# disk. Whispy can't transcribe without one, so say so here rather than let it
+# fail on the first key press.
+HAVE_MODEL=0
+for m in "$DATA_DIR/models/ggml-large-v3-turbo.bin" \
+         "$DATA_DIR/models/ggml-base.bin" \
+         "$HOME/.local/share/whisper-toggle/models/ggml-large-v3-turbo.bin" \
+         "$HOME/.local/share/whisper-toggle/models/ggml-base.bin"; do
+    [[ -f "$m" ]] && { HAVE_MODEL=1; echo ""; echo "  ✓ model: $m"; break; }
+done
+
+if [[ "$HAVE_MODEL" -eq 0 ]]; then
+    echo ""
+    echo "  ! No model found — whispy cannot transcribe yet. Download one:"
+    echo ""
+    echo "    # small and fast, ~150 MB — fine to start with"
+    echo "    curl -L --create-dirs -o $DATA_DIR/models/ggml-base.bin \\"
+    echo "      https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
+    echo ""
+    echo "    # much more accurate, ~1.6 GB — recommended if you have a GPU"
+    echo "    curl -L --create-dirs -o $DATA_DIR/models/ggml-large-v3-turbo.bin \\"
+    echo "      https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin"
+fi
+
 echo ""
 echo "✔ Installed"
 echo ""
-echo "  Push-to-talk (recommended) — hold the key, speak, release:"
-echo "    systemctl --user enable --now whispy-ptt"
+echo "  1. Open the control panel to pick a provider and check your setup:"
+echo "       whispy gui"
 echo ""
-echo "  Toggle — press to start, press again to transcribe:"
-echo "    bind a shortcut to $WHISPY_BIN   (absolute path required)"
+echo "  2. Push-to-talk (recommended) — hold the key, speak, release:"
+echo "       systemctl --user enable --now whispy-ptt"
 echo ""
-echo "  Model:  see README for the download command"
-echo "  Logs:   tail -f /tmp/whispy.log"
-echo "  Tests:  pip install -e '.[dev,ptt]' && pytest -q"
+echo "     Toggle — press once to start, press again to transcribe:"
+echo "       bind a shortcut to $WHISPY_BIN   (absolute path required)"
+echo ""
+echo "  Backends: whispy providers"
+echo "  Logs:     tail -f /tmp/whispy.log"
+echo "  Tests:    pip install -e '.[dev,ptt]' && pytest -q"

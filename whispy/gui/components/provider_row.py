@@ -28,11 +28,13 @@ class ProviderRow:
         self.env_var = env_var
         self.needs_key = needs_key
 
+        # two grid rows per provider: separator, then the row body. Putting both
+        # on row=index stacked them on top of each other and hid the separator.
         if index > 0:
-            tk.Frame(parent, bg=BORDER, height=1).grid(row=index, column=0, sticky="new")
+            tk.Frame(parent, bg=BORDER, height=1).grid(row=index * 2, column=0, sticky="ew")
 
         self.wf = tk.Frame(parent, bg=SURFACE)
-        self.wf.grid(row=index, column=0, sticky="ew")
+        self.wf.grid(row=index * 2 + 1, column=0, sticky="ew")
         self.wf.columnconfigure(3, weight=1)
 
         self.bar = tk.Frame(self.wf, bg=BORDER, width=4)

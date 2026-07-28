@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "whispy"
-version = "0.4.0"
+version = "0.4.1"
 description = "Dettatura vocale locale per Linux — tieni premuto, parla, rilascia. Zero cloud."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -35,8 +35,8 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["ruff>=0.6", "pytest>=8.0"]
 ptt = ["evdev>=1.6"]
-groq = ["groq>=0.9"]
-openai = ["openai>=1.0"]
+# openai/groq/openrouter/huggingface/google speak plain HTTP through
+# providers/base.py (stdlib urllib) — no SDK extra needed for them.
 faster-whisper = ["faster-whisper>=1.0"]
 
 [tool.pytest.ini_options]
