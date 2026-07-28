@@ -74,6 +74,7 @@ def find_keyboards() -> list[InputDevice]:
 def run(cfg: Config | None = None) -> int:
     """Push-to-talk loop. Does not return until interrupted."""
     cfg = cfg or Config.load()
+    _lock_paths_cleanup()  # a leftover toggle lock would block the next toggle press
 
     try:
         combo = parse_combo(getattr(cfg, "ptt_key", "") or DEFAULT_COMBO)
@@ -162,8 +163,14 @@ def _stop_and_transcribe(cfg: Config, proc):
         stop_recording(proc.pid)
     # arecord only updates the header on exit: give it a moment
     time.sleep(0.12)
-    with contextlib.suppress(Exception):
+    # Never suppress silently here: the PTT loop must survive a failed
+    # transcription, but the user has to be told *why* nothing was pasted.
+    try:
         _transcribe_and_paste(cfg)
+    except Exception as exc:  # noqa: BLE001 — keep the loop alive, surface the cause
+        msg = str(exc) or repr(exc)
+        _log(f"ptt transcribe failed [{type(exc).__name__}]: {msg}")
+        _notify(msg[:120], "critical", timeout_ms=6000)
     return None
 
 

@@ -23,6 +23,15 @@ def _cfg(tmp: Path) -> Config:
     )
 
 
+def _no_autostop():
+    """Stop tests from fork()ing an autostop child that outlives the run.
+
+    ``_spawn_autostop`` forks and sleeps for ``max_record_seconds``; the child
+    inherits pytest's stdout, so the suite can't finish until it exits.
+    """
+    return patch("whispy.toggle._spawn_autostop")
+
+
 def _write_wav(path: Path, samples: int = 16000) -> None:
     with wave.open(str(path), "wb") as w:
         w.setnchannels(1)
@@ -44,6 +53,7 @@ def test_start_writes_lock_and_notifies(tmp_path: Path, monkeypatch) -> None:
     with (
         patch("whispy.toggle.start_recording", return_value=mock_proc) as start,
         patch("whispy.toggle._notify"),
+        _no_autostop() as autostop,
     ):
         rc = toggle(cfg)
 
@@ -51,6 +61,8 @@ def test_start_writes_lock_and_notifies(tmp_path: Path, monkeypatch) -> None:
     start.assert_called_once()
     assert cfg.lock_file.read_text().strip() == str(os.getpid())
     assert STARTED_AT.exists()
+    # the configured limit is used as-is; it used to be silently rewritten to 8s
+    assert autostop.call_args.args[1] == cfg.max_record_seconds
 
 
 def test_stop_after_min_age_transcribes(tmp_path: Path, monkeypatch) -> None:
@@ -94,6 +106,7 @@ def test_early_stop_ignored_double_fire(tmp_path: Path, monkeypatch) -> None:
     with (
         patch("whispy.toggle.start_recording", return_value=mock_proc),
         patch("whispy.toggle._notify"),
+        _no_autostop(),
     ):
         assert toggle(cfg) == 0
 
@@ -135,6 +148,7 @@ def test_double_start_fire_debounced(tmp_path: Path, monkeypatch) -> None:
         patch("whispy.toggle.start_recording", return_value=mock_proc) as start,
         patch("whispy.toggle._notify"),
         patch("whispy.toggle._read_lock", return_value=None),
+        _no_autostop(),
     ):
         assert toggle(cfg) == 0
         assert toggle(cfg) == 0

@@ -26,7 +26,9 @@ def test_toggle_e2e_record_stop_with_mock_whisper(tmp_path: Path, monkeypatch) -
     )
     Path(cfg.whisper_model).write_bytes(b"x")
 
-    with patch("whispy.toggle._notify"):
+    # _spawn_autostop forks a child that sleeps max_record_seconds and inherits
+    # pytest's stdout — without this the suite can't finish until it wakes up.
+    with patch("whispy.toggle._notify"), patch("whispy.toggle._spawn_autostop"):
         assert toggle(cfg) == 0
         assert cfg.lock_file.exists()
         pid = int(cfg.lock_file.read_text().strip())
