@@ -6,7 +6,7 @@
 ![Wayland](https://img.shields.io/badge/Wayland-ready-brightgreen)
 ![Stars](https://img.shields.io/github/stars/ciroautuori/whispy?style=social)
 ![Last Commit](https://img.shields.io/github/last-commit/ciroautuori/whispy)
-![Version](https://img.shields.io/badge/version-0.3.0-green)
+![Version](https://img.shields.io/badge/version-0.4.1-green)
 
 **Hold a key. Speak. Release. The text lands at your cursor.**
 
@@ -67,7 +67,21 @@ curl -LO https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
 curl -LO https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin
 ```
 
-Whispy picks the model on its own: it prefers `large-v3-turbo` and falls back to `base`.
+Whispy picks the model on its own: it prefers `large-v3-turbo` and falls back to `base`. `./install.sh` tells you if no model is present yet and prints the exact command.
+
+### Check everything works
+
+```bash
+whispy gui
+```
+
+The control panel shows every backend with a status dot, and each row has a
+**Test** button that records ~5 seconds from your microphone and transcribes it
+for real. If `local` gives you back your own words, you're done — that is the
+whole setup.
+
+Prefer the terminal? `whispy providers` prints the same list, and
+`tail -f /tmp/whispy.log` shows what happens while you dictate.
 
 ### Enable push-to-talk
 
@@ -124,7 +138,7 @@ Linux desktop dictation either doesn't exist or ships your voice to someone else
 - **Fast** — ~1.5s for a sentence with `large-v3-turbo` on GPU
 - **True push-to-talk** — hold to record, release to transcribe, like a radio
 - **Quiet** — one notification that updates itself, then disappears
-- **Small** — ~700 lines of Python, no mandatory runtime dependencies
+- **Small** — ~3k lines of Python, no mandatory runtime dependencies
 - **Wayland-first** — works where `xdotool` cannot reach
 
 ### Why push-to-talk needs evdev
@@ -162,7 +176,9 @@ Bind `/home/YOUR_USER/.local/bin/whispy` to a shortcut — **use the absolute pa
 | Command | Description |
 |---------|-------------|
 | `whispy` | One toggle step: start recording, or stop and transcribe |
+| `whispy gui` | Desktop control panel: provider, API keys, recording settings |
 | `whispy ptt` | Push-to-talk in the foreground (useful for debugging) |
+| `whispy providers` | List every backend and the environment variable it reads |
 | `whispy version` | Print the version |
 
 Logs go to `/tmp/whispy.log` — `tail -f` it while you dictate.
@@ -171,21 +187,33 @@ Logs go to `/tmp/whispy.log` — `tail -f` it while you dictate.
 
 ## Providers
 
-Whispy supports multiple transcription backends. You can choose the provider by setting `PROVIDER=` in your configuration.
+**You do not need any of this to use Whispy.** The default, `local`, runs
+offline on your own machine and needs no account and no key. The other backends
+exist for when you want them — a laptop with no GPU, or a language your local
+model handles poorly.
+
+Switch backend with `PROVIDER=` in the config, or pick one in `whispy gui`.
+
+API keys are read from environment variables, never from `whispy.conf` (that
+file is plaintext). The control panel can store them for you in
+`~/.config/whispy/whispy.env`, chmod 600 — that's the easy path. The manual one
+is `export GROQ_API_KEY=...` in your shell profile.
 
 | Provider | `PROVIDER=` | Description | Needs |
 |----------|-------------|-------------|-------|
-| **Local** | `local` | Default. Uses `whisper.cpp` locally. | `whisper-cli` on `PATH` |
-| **Groq** | `groq` | Cloud. Free, ultra-fast `whisper-large-v3`. | `groq` package + `API_KEY` |
-| **OpenAI** | `openai` | Cloud. Official Whisper API (high quality). | `openai` package + `API_KEY` |
-| **Faster-Whisper** | `faster-whisper` | Local Python-only alternative to `whisper.cpp`. | `faster-whisper` package |
+| **Local** | `local` | Default. `whisper.cpp`, fully offline. | `whisper-cli` on `PATH` |
+| **Faster-Whisper** | `faster_whisper` | Local, Python-only alternative to `whisper.cpp`. | `pip install 'whispy[faster-whisper]'` |
+| **OpenAI** | `openai` | Cloud. Official Whisper API. | `OPENAI_API_KEY` |
+| **Groq** | `groq` | Cloud. Free, ultra-fast `whisper-large-v3-turbo`. | `GROQ_API_KEY` |
+| **OpenRouter** | `openrouter` | Cloud. Routes to several Whisper-family models. | `OPENROUTER_API_KEY` |
+| **Hugging Face** | `huggingface` | Cloud, serverless inference. | `HF_TOKEN` |
+| **Google** | `google` | Cloud Speech-to-Text v1. | `GOOGLE_API_KEY` |
+| **NVIDIA** | `nvidia` | Riva/NIM ASR over gRPC. | `NVIDIA_API_KEY` + `NVIDIA_FUNCTION_ID=` in the config, `pip install nvidia-riva-client` |
+| **Ollama** | `ollama` | Local, best-effort — Ollama has no dedicated STT API. | an audio-capable model pulled locally |
 
-To install the dependencies for a cloud/Python provider:
-```bash
-pip install 'whispy[groq]'          # for Groq
-pip install 'whispy[openai]'        # for OpenAI
-pip install 'whispy[faster-whisper]' # for Faster-Whisper
-```
+The cloud providers speak plain HTTP through the standard library, so none of
+them needs an SDK installed. Run `whispy providers` for the same table with
+the defaults currently in effect.
 
 ---
 
@@ -194,14 +222,19 @@ pip install 'whispy[faster-whisper]' # for Faster-Whisper
 `~/.config/whispy/whispy.conf`, all keys optional:
 
 ```ini
+PROVIDER=local                  # see the Providers table above
+CLOUD_MODEL=                    # empty = that provider's default model
 WHISPER_MODEL=                  # empty = auto-detect
 WHISPER_LANGUAGE=en             # en, it, … ("auto" to detect)
 WHISPER_THREADS=8
 AUTOPASTE=1                     # 0 = clipboard only, no injection
 PTT_KEY=META+F12                # push-to-talk key
 NOTIFY_LEVEL=normal             # normal | quiet (errors only) | off
-MAX_RECORD_SECONDS=8            # toggle safety net
+MAX_RECORD_SECONDS=8            # toggle safety net, honoured as written
 KEEP_AUDIO=0                    # 1 keeps the WAV for inspection
+OLLAMA_HOST=http://localhost:11434   # provider=ollama only
+NVIDIA_SERVER=                  # self-hosted NIM host:port; empty = NVIDIA cloud
+NVIDIA_FUNCTION_ID=             # required by the NVIDIA cloud endpoint
 ```
 
 ### Choosing the key
@@ -225,6 +258,35 @@ On success with auto-paste, the notification is **closed** rather than repeating
 ---
 
 ## Troubleshooting
+
+**Start here.** Whispy logs every step of every dictation:
+
+```bash
+tail -f /tmp/whispy.log
+```
+
+Dictate one sentence while that runs. A healthy cycle looks like this:
+
+```
+record start pid=12345 autostop=8s
+stop pid=12345 age=2.1s → transcribe model=ggml-large-v3-turbo.bin lang=it
+audio size=92044 dur≈2.88s
+ok: 'buongiorno a tutti'
+```
+
+Where it stops tells you which step failed — and the same message is shown as a
+desktop notification.
+
+### Nothing happens at all
+
+| The log says | Meaning | Fix |
+|--------------|---------|-----|
+| nothing at all | The key never reached Whispy | Check the shortcut, or `systemctl --user status whispy-ptt` |
+| `Microphone unavailable` | `arecord` couldn't open the mic | Another app is holding it, or no input device is selected |
+| `model not found: …` | No model on disk | Download one — see [Get a model](#get-a-model) |
+| `whisper-cli not found` | whisper.cpp isn't on `PATH` | Install it, then reopen your terminal |
+| `unknown provider …` | Typo in `PROVIDER=` | `whispy providers` lists the valid names |
+| `… needs GROQ_API_KEY set …` | A cloud backend has no key | Enter it in `whispy gui` → **Save Keys**, or `export` it |
 
 ### Push-to-talk doesn't react
 
@@ -251,10 +313,10 @@ The text is in the clipboard either way — `Ctrl+V` always works. Set `AUTOPAST
 
 ### "No text" or wrong transcriptions
 
-- Speak for **at least one second**: anything under `0.7s` is discarded
+- Recordings shorter than **0.5s** are discarded — hold the key a moment longer
 - Set `WHISPER_LANGUAGE` explicitly instead of leaving `auto`
 - Switch to `large-v3-turbo`; `base` is weak on non-English speech
-- The last failed recording is kept at `/tmp/whispy-last-failed.wav`
+- The last failed recording is kept at `/tmp/whispy-last-failed.wav` — play it back, and if you can't hear yourself the problem is the microphone, not Whisper
 
 ### It feels slow
 
@@ -293,7 +355,7 @@ pip install -e '.[dev,ptt]'
 ./scripts/check.sh          # lint + format + tests, no hardware required
 ```
 
-Tests stub out `subprocess` and `evdev` devices, so they run anywhere — no microphone, no keyboard, no GPU. They cover WAV header repair, ydotool argument parsing, config loading, notification replacement, key combo parsing, and device selection.
+103 tests, ~5 seconds, no hardware: `subprocess` and `evdev` devices are stubbed, so they run anywhere — no microphone, no keyboard, no GPU. They cover WAV header repair, ydotool argument parsing, config loading, notification replacement, key combo parsing, device selection, the toggle state machine, every entry in the provider registry, and the error paths that must reach the user.
 
 Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Whispy stays small: if a feature doesn't serve *speech → cursor*, it probably doesn't belong.
 

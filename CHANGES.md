@@ -3,6 +3,56 @@
 All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/).
 
+## [0.4.1] - 2026-07-28
+
+### Fixed
+- **Transcription was completely broken.** The provider registry imported
+  `transcribe` from modules that had been refactored into classes, and from two
+  module names that did not exist (`providers/openai.py`, `providers/groq.py`
+  were named `*_provider.py`). `local` — the default provider — raised
+  `ImportError: cannot import name 'transcribe' from 'whispy.providers.local'`
+  on every single dictation. `openai` and `groq` raised `ModuleNotFoundError`.
+  Five of the nine backends now resolve where three did not.
+- **The failure was invisible.** `toggle.py` and the GUI test runner caught only
+  `RuntimeError`, and `ptt.py` wrapped transcription in a bare
+  `contextlib.suppress(Exception)`, so recording succeeded, no text appeared,
+  and nothing was written to the log or shown as a notification. All three now
+  report the cause.
+- A crash inside the GUI's live-test thread left `testing_name` set forever,
+  disabling every Test button with no message on screen. The worker now always
+  emits exactly one result.
+- `MAX_RECORD_SECONDS` above 30 was silently rewritten to 8, so the control
+  panel's 3–300s setting appeared to do nothing. The configured value is used.
+- `whispy version` printed `0.2.0` while the package shipped as `0.4.0`; a test
+  now pins `__version__` to the `pyproject.toml` version.
+- The provider-row separator was gridded onto the same row as the row body and
+  was never visible.
+
+### Added
+- `whispy providers` — the backend/key table the code already documented but
+  the CLI never exposed.
+- `faster_whisper` is registered as a real provider (the module existed but no
+  name mapped to it).
+- `tests/test_providers.py` and `tests/test_error_surfacing.py`: every entry in
+  the registry is resolved and its signature checked, and the swallowed-error
+  paths are covered. The previous suite mocked `whispy.toggle.transcribe`
+  everywhere and never called `get_provider`, which is why 56 green tests
+  coexisted with a product that could not transcribe at all.
+
+### Changed
+- One provider contract instead of two: every backend is a module-level
+  `transcribe(cfg, wav_path) -> str`. The unused `TranscribeProvider` ABC and
+  the four class-based implementations that nothing instantiated are gone.
+- `get_provider` resolves through the module name recorded in `PROVIDER_INFO`,
+  so a file rename cannot silently desync the registry again, and it raises
+  `RuntimeError` rather than letting `ImportError` escape to callers.
+- OpenAI and Groq go through the existing stdlib HTTP path instead of their
+  SDKs, and read their key from `OPENAI_API_KEY` / `GROQ_API_KEY` like every
+  other cloud provider (the class versions read a `cfg.api_key` field that does
+  not exist on `Config`, so they could never have authenticated). The now-unused
+  `whispy[openai]` and `whispy[groq]` extras were removed.
+- Provider names are dash- and case-insensitive (`faster-whisper` works).
+
 ## [0.3.0] - 2026-07-18
 
 ### Added
