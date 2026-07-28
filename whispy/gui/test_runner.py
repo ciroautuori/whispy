@@ -3,6 +3,12 @@
 Owns the bookkeeping the GUI used to inline: enabling/disabling the other test
 buttons while one is running, the double-click-to-stop event, and routing
 results back onto the Tk main loop via :meth:`root.after`.
+
+``ttk`` appears here only as a type annotation, and ``from __future__ import
+annotations`` keeps annotations unevaluated — so it is imported under
+``TYPE_CHECKING`` and this module stays importable on a machine with no Tk.
+That is what the docstring above means by "no Tk coupling": ``root`` is any
+object with ``.after()``, which is also how the tests drive it.
 """
 
 from __future__ import annotations
@@ -12,7 +18,10 @@ import os
 import threading
 import time
 from pathlib import Path
-from tkinter import ttk
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # ttk is only ever an annotation here — see the note below
+    from tkinter import ttk
 
 from ..audio import fix_wav_header, start_recording, stop_recording
 from ..config import Config

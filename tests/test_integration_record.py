@@ -1,15 +1,28 @@
-"""Integration test for record/stop toggle flow."""
+"""Integration test for record/stop toggle flow.
+
+The only test here that touches real hardware: it starts an actual recorder
+process. Headless CI boxes have no sound stack, so it skips rather than
+fails — the same condition ``audio.build_record_cmd`` checks.
+"""
 
 from __future__ import annotations
 
 import os
+import shutil
 import time
 import wave
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from whispy.config import Config
 from whispy.toggle import toggle
+
+pytestmark = pytest.mark.skipif(
+    not any(shutil.which(binary) for binary in ("arecord", "rec", "sox")),
+    reason="no recorder on this machine (arecord / rec / sox)",
+)
 
 
 def test_toggle_e2e_record_stop_with_mock_whisper(tmp_path: Path, monkeypatch) -> None:
