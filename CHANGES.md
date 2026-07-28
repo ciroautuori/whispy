@@ -27,6 +27,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
   now pins `__version__` to the `pyproject.toml` version.
 - The provider-row separator was gridded onto the same row as the row body and
   was never visible.
+- `whispy.gui.state` is documented as Tk-free so the ViewModel can be tested on
+  a headless machine, but `whispy/gui/__init__.py` imported the View eagerly —
+  so importing it pulled in tkinter and died with `libtk8.6.so: cannot open
+  shared object file` anywhere Tk isn't installed. `WhispyGUI` and `main` now
+  resolve lazily (PEP 562), and `gui/test_runner.py` imports `ttk` under
+  `TYPE_CHECKING` since it only ever used it as an annotation.
+- `whispy gui` without Tk prints the package to install (Arch, Debian, Fedora)
+  instead of a traceback.
+- The record/stop integration test skips where no recorder (arecord, rec, sox)
+  exists rather than failing — it is the one test that touches real hardware.
 
 ### Added
 - `whispy providers` — the backend/key table the code already documented but
@@ -52,6 +62,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
   not exist on `Config`, so they could never have authenticated). The now-unused
   `whispy[openai]` and `whispy[groq]` extras were removed.
 - Provider names are dash- and case-insensitive (`faster-whisper` works).
+- CI installs into a throwaway virtualenv instead of the runner's host Python,
+  runs `ruff format --check` (which only `scripts/check.sh` did), declares
+  `permissions: contents: read`, and cancels superseded runs per branch.
+  `scripts/check.sh` lints `.` like CI does, not just `whispy/` and `tests/`.
 
 ## [0.3.0] - 2026-07-18
 
