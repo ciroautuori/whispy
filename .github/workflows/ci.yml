@@ -24,7 +24,7 @@ jobs:
     steps:
       # clean: true (the default) wipes untracked files — including the venv
       # from the previous run, which a self-hosted runner would otherwise keep.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # A self-hosted runner keeps its filesystem between jobs. Installing into
       # a throwaway venv keeps runs from contaminating each other or the host
