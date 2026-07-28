@@ -19,7 +19,6 @@ import re
 import urllib.error
 import urllib.request
 import uuid
-from abc import ABC, abstractmethod
 from pathlib import Path
 
 # typical whisper-family hallucinations / no-speech output on silence or noise.
@@ -159,13 +158,3 @@ def openai_compatible_transcribe(
     if "error" in data:
         raise RuntimeError(f"{label}: {data['error']}")
     return str(data.get("text") or "").strip()
-
-
-
-class TranscribeProvider(ABC):
-    def __init__(self, cfg):
-        self.cfg = cfg
-
-    @abstractmethod
-    def transcribe(self, audio_path: Path) -> str:
-        pass
