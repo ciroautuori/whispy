@@ -25,8 +25,20 @@ def main() -> int:
         print(describe_providers())
         return 0
     if len(sys.argv) > 1 and sys.argv[1] in {"gui", "config"}:
-        from .gui import main as gui_main
-
+        try:
+            from .gui import main as gui_main
+        except ImportError as exc:
+            # Tk ships separately from Python on most distros. A traceback here
+            # tells the user nothing they can act on; the package name does.
+            print(
+                f"[whispy] the control panel needs Tk, which isn't installed ({exc}).\n"
+                "         Arch:          sudo pacman -S tk\n"
+                "         Debian/Ubuntu: sudo apt install python3-tk\n"
+                "         Fedora:        sudo dnf install python3-tkinter\n"
+                "         Everything else works without it — try: whispy providers",
+                file=sys.stderr,
+            )
+            return 1
         return gui_main()
     if len(sys.argv) > 1 and sys.argv[1] == "ptt":
         from .ptt import run
