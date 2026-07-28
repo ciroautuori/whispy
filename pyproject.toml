@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "whispy"
-version = "0.4.1"
+version = "0.4.2"
 description = "Dettatura vocale locale per Linux — tieni premuto, parla, rilascia. Zero cloud."
 readme = "README.md"
 requires-python = ">=3.11"
