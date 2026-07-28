@@ -33,13 +33,15 @@ def wav_duration_s(wav_path: Path) -> float:
 
 
 def transcribe(cfg: Config, wav_path: Path) -> str:
-    """Run the configured provider and return cleaned, paste-ready text."""
+    """Run the configured provider and return cleaned, paste-ready text.
+
+    ``clean_transcript`` runs here, once, for every backend — providers hand
+    back their raw text. It used to run twice for the local provider (once
+    inside it, once here): harmless, since the function is idempotent, but it
+    meant the cleanup rules lived in two places.
+    """
     backend = get_provider(cfg.provider)
     text = backend(cfg, wav_path)
     if not text:
         return ""
-    # providers/local.py already cleans its own output (whisper-cli-specific
-    # stdout/stderr fallback quirks). Re-cleaning here is harmless —
-    # clean_transcript is idempotent — and puts every cloud provider's raw
-    # API text on the same paste-ready footing without a special case.
     return clean_transcript(text)

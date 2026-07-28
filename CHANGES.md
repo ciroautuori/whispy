@@ -3,6 +3,31 @@
 All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/).
 
+## [0.4.2] - 2026-07-28
+
+### Changed
+
+- **Transcripts keep their punctuation and their capitalization.**
+  `clean_transcript` stripped trailing `.,;:!?` and forced the first letter
+  upper, so dictating "ciao, come stai?" pasted "Ciao, come stai" and you
+  retyped the question mark. Whisper punctuates and capitalizes well; the
+  cleanup now removes model artifacts and normalizes whitespace, and nothing
+  else. Forcing upper was also wrong every time you dictate into the middle of
+  a sentence.
+- `(...)` is no longer deleted wholesale. It was there to drop non-speech notes
+  like "(musica)", but it ate real speech with it — "ho parlato con Marco (il
+  collega) ieri" lost the aside. Bracketed `[...]` and starred `*...*`
+  annotations are still removed, and a transcript that is *only* noise is still
+  dropped.
+- The cleanup runs **once**, in `whispy.transcribe.transcribe`. It used to run
+  twice for the local provider — once inside it, once in the dispatcher. The
+  second pass was redundant rather than harmful, but it meant the local
+  provider carried its own copy of the cleanup rules; now every provider
+  returns its backend's raw text and there is one place to reason about.
+
+Ported from work on `fix/multi-provider` that never reached main
+(`c56c386`, 20 Jul).
+
 ## [0.4.1] - 2026-07-28
 
 ### Fixed

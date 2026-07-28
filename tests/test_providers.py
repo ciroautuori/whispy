@@ -83,11 +83,13 @@ def test_transcribe_dispatches_through_the_registry(tmp_path: Path, monkeypatch)
 
     def fake(cfg: Config, wav_path: Path) -> str:
         seen["provider"] = cfg.provider
-        return "  ciao mondo  "
+        return "  ciao, come stai?  "
 
     monkeypatch.setattr(transcribe_mod, "get_provider", lambda name: fake)
     cfg = Config(provider="groq")
-    assert transcribe_mod.transcribe(cfg, tmp_path / "a.wav") == "Ciao mondo"
+    # the dispatcher is where clean_transcript runs: whitespace goes,
+    # punctuation and case stay
+    assert transcribe_mod.transcribe(cfg, tmp_path / "a.wav") == "ciao, come stai?"
     assert seen["provider"] == "groq"
 
 

@@ -6,7 +6,7 @@
 ![Wayland](https://img.shields.io/badge/Wayland-ready-brightgreen)
 ![Stars](https://img.shields.io/github/stars/ciroautuori/whispy?style=social)
 ![Last Commit](https://img.shields.io/github/last-commit/ciroautuori/whispy)
-![Version](https://img.shields.io/badge/version-0.4.1-green)
+![Version](https://img.shields.io/badge/version-0.4.2-green)
 
 **Hold a key. Speak. Release. The text lands at your cursor.**
 

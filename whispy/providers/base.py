@@ -38,16 +38,33 @@ _JUNK = re.compile(
 
 
 def clean_transcript(text: str) -> str:
-    """Clean raw model output → text ready to paste. Idempotent."""
+    """Strip model artifacts and normalize whitespace. Nothing else.
+
+    What it deliberately leaves alone, because dictation is not captioning
+    and the model already gets these right:
+
+    - **Punctuation.** It used to strip trailing ``.,;:!?`` — so "come stai?"
+      pasted as "come stai". Whisper punctuates well; throwing that away
+      meant retyping it.
+    - **Capitalization.** It used to force the first letter upper. That is
+      wrong every time you dictate into the middle of a sentence, and
+      redundant otherwise since the model already capitalizes.
+    - **Parentheses.** ``(...)`` used to be deleted wholesale to catch
+      non-speech notes like "(musica)". It also ate real speech. Bracketed
+      ``[...]`` and starred ``*...*`` annotations are still removed, and
+      _JUNK below still drops a transcript that is *only* noise.
+
+    Applied once, by :func:`whispy.transcribe.transcribe` — providers return
+    their backend's raw text.
+    """
     text = re.sub(r"\[.*?\]", "", text)
-    text = re.sub(r"\(.*?\)", "", text)
     text = re.sub(r"\*+[^*\s]*\*+", "", text)
-    text = re.sub(r"\s+", " ", text).strip(" \t\n\r.,;:!?-–—")
+    text = re.sub(r"\s+", " ", text).strip()
     if not text or _JUNK.match(text):
         return ""
     if len(text) <= 1:
         return ""
-    return text[0].upper() + text[1:]
+    return text
 
 
 def require_env(var_name: str, label: str) -> str:

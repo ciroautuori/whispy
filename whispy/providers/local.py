@@ -2,7 +2,9 @@
 
 Exposes the same ``transcribe(cfg, wav_path) -> str`` contract as every other
 provider module — see ``providers/__init__.py`` for the registry that
-dispatches to it.
+dispatches to it. Like the others, it returns its backend's raw text:
+``whispy.transcribe.transcribe`` applies ``clean_transcript`` once, for
+everyone.
 """
 
 from __future__ import annotations
@@ -13,7 +15,6 @@ import subprocess
 from pathlib import Path
 
 from ..config import Config
-from .base import clean_transcript
 
 
 def build_whisper_cmd(
@@ -92,10 +93,6 @@ def transcribe(cfg: Config, wav_path: Path) -> str:
                 f"whisper-cli failed on GPU and CPU ({exc2.returncode}): {err2[:200]}"
             ) from exc2
 
-    raw = proc.stdout if proc.stdout.strip() else proc.stderr
-    text = clean_transcript(proc.stdout)
-    if not text and proc.stdout.strip():
-        return ""
-    if not text and raw and raw != proc.stdout:
-        text = clean_transcript(raw)
-    return text
+    # some whisper-cli builds put the text on stderr when -np isn't honoured
+    text = proc.stdout if proc.stdout.strip() else proc.stderr
+    return text.strip()
