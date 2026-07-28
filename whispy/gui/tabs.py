@@ -37,7 +37,8 @@ def build_provider_tab(parent, state: FormState, ctx) -> None:
         style="Dark.TCombobox",
     )
     combo.grid(row=0, column=1, sticky="w", padx=(10, 0))
-    combo.bind("<<ComboboxSelected>>", ctx.on_provider_change)
+    # _apply_provider, not on_provider_change: picking one saves it right away
+    combo.bind("<<ComboboxSelected>>", ctx._apply_provider)
 
     ttk.Label(outer, text="Model override", style="TLabel").grid(
         row=1, column=0, sticky="w", pady=(10, 2)

@@ -124,6 +124,37 @@ class Config:
         cfg.whisper_model = resolve_model(raw_model or cfg.whisper_model)
         return cfg
 
+    def set_key(self, key: str, value: str, path: str | os.PathLike[str] | None = None) -> Path:
+        """Set one ``KEY=value`` line in whispy.conf, leaving the rest alone.
+
+        :meth:`save` rewrites the whole file from the dataclass, which drops
+        every comment the user wrote. Changing a single setting — which is
+        what ``whispy use`` does — should not cost them their notes, so this
+        edits the one line in place and appends it if it wasn't there.
+        """
+        target = Path(path) if path else self.config_file
+        target.parent.mkdir(parents=True, exist_ok=True)
+        key = key.strip().upper()
+        line = f"{key}={value}"
+
+        if not target.exists():
+            target.write_text(line + "\n", encoding="utf-8")
+            return target
+
+        lines = target.read_text(encoding="utf-8").splitlines()
+        for i, existing in enumerate(lines):
+            stripped = existing.strip()
+            if stripped.startswith("#") or "=" not in stripped:
+                continue
+            if stripped.split("=", 1)[0].strip().upper().replace("-", "_") == key:
+                lines[i] = line
+                break
+        else:
+            lines.append(line)
+
+        target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return target
+
     def save(self, path: str | os.PathLike[str] | None = None) -> None:
         """Write this config back to whispy.conf as KEY=value lines.
 

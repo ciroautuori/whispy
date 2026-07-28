@@ -48,10 +48,12 @@ def test_declared_module_exists_and_exports_transcribe(name: str) -> None:
 @pytest.mark.parametrize("name", PROVIDER_NAMES)
 def test_info_entry_is_complete(name: str) -> None:
     info = PROVIDER_INFO[name]
-    assert set(info) == {"module", "env_var", "default_model", "needs_key"}
+    assert set(info) == {"module", "label", "env_var", "default_model", "needs_key"}
     assert isinstance(info["needs_key"], bool)
     # a provider that needs a key must name the env var it reads it from
     assert bool(info["env_var"]) == info["needs_key"]
+    # the label is what the launcher menu shows, so it has to be presentable
+    assert str(info["label"]).strip() and str(info["label"])[0].isupper()
 
 
 def test_unknown_provider_raises_runtime_error() -> None:

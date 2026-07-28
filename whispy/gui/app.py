@@ -9,10 +9,13 @@ live-test worker in :mod:`whispy.gui.test_runner`. What remains here is just
 
 from __future__ import annotations
 
+import contextlib
 import os
 import tkinter as tk
 from tkinter import ttk
 
+from ..config import Config
+from ..desktop import write as write_desktop
 from ..envfile import env_file_path, write_env_file
 from . import theme
 from .components.status_bar import StatusBar
@@ -124,6 +127,29 @@ class WhispyGUI:
                 out[env_var] = row.key_value()
         return out
 
+    def _apply_provider(self, *_a) -> None:
+        """Selecting a provider takes effect at once — no Save Config needed.
+
+        It is the one setting people change often (laptop on battery -> a
+        cloud backend and back), and a dropdown that silently does nothing
+        until you find the save button is a trap. The other fields keep the
+        explicit save.
+        """
+        self.on_provider_change()
+        provider = self.var_provider.get()
+        try:
+            Config.load().set_key("PROVIDER", provider)
+        except OSError as exc:
+            self.status.set(f"✗ couldn't switch provider: {exc}")
+            return
+        self._refresh_desktop_entry()
+        self.status.set(f"✓ provider: {provider}")
+
+    def _refresh_desktop_entry(self) -> None:
+        """Keep the launcher's right-click menu in step with the keys we hold."""
+        with contextlib.suppress(RuntimeError):
+            write_desktop()
+
     def on_provider_change(self, *_a) -> None:
         active = self.var_provider.get()
         for name, row in self.rows.items():
@@ -197,6 +223,9 @@ class WhispyGUI:
         for k, v in values.items():
             if v:
                 os.environ[k] = v
+        # a provider becomes usable the moment its key exists, so it should
+        # show up in the launcher menu without waiting for a reinstall
+        self._refresh_desktop_entry()
         self.status.set(f"✓ keys saved to {env_file_path()} (chmod 600)")
 
 

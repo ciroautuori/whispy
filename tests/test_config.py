@@ -51,3 +51,51 @@ def test_env_override_paths(monkeypatch, tmp_path: Path) -> None:
     cfg = Config()
     assert cfg.audio_file == tmp_path / "x.wav"
     assert cfg.lock_file == tmp_path / "x.lock"
+
+
+def test_set_key_preserves_comments_and_other_lines(tmp_path: Path) -> None:
+    """`whispy use` must not cost the user the notes they wrote in the file.
+
+    Config.save() rewrites the whole file from the dataclass, which drops
+    every comment — hence a separate single-line edit.
+    """
+    conf = tmp_path / "whispy.conf"
+    conf.write_text(
+        "# i miei appunti\nWHISPER_LANGUAGE=it\n# non cancellarmi\nWHISPER_THREADS=12\n",
+        encoding="utf-8",
+    )
+    Config().set_key("PROVIDER", "groq", conf)
+    assert conf.read_text(encoding="utf-8") == (
+        "# i miei appunti\n"
+        "WHISPER_LANGUAGE=it\n"
+        "# non cancellarmi\n"
+        "WHISPER_THREADS=12\n"
+        "PROVIDER=groq\n"
+    )
+
+
+def test_set_key_replaces_in_place(tmp_path: Path) -> None:
+    conf = tmp_path / "whispy.conf"
+    conf.write_text("PROVIDER=local\nWHISPER_THREADS=8\n", encoding="utf-8")
+    Config().set_key("PROVIDER", "openai", conf)
+    assert conf.read_text(encoding="utf-8") == "PROVIDER=openai\nWHISPER_THREADS=8\n"
+
+
+def test_set_key_ignores_a_commented_out_line(tmp_path: Path) -> None:
+    conf = tmp_path / "whispy.conf"
+    conf.write_text("# PROVIDER=openai\n", encoding="utf-8")
+    Config().set_key("PROVIDER", "groq", conf)
+    assert conf.read_text(encoding="utf-8") == "# PROVIDER=openai\nPROVIDER=groq\n"
+
+
+def test_set_key_creates_the_file(tmp_path: Path) -> None:
+    conf = tmp_path / "sub" / "whispy.conf"
+    Config().set_key("PROVIDER", "groq", conf)
+    assert conf.read_text(encoding="utf-8") == "PROVIDER=groq\n"
+
+
+def test_set_key_round_trips_through_load(tmp_path: Path) -> None:
+    conf = tmp_path / "whispy.conf"
+    conf.write_text("# hi\nWHISPER_LANGUAGE=en\n", encoding="utf-8")
+    Config().set_key("PROVIDER", "groq", conf)
+    assert Config.load(conf).provider == "groq"
