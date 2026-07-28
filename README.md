@@ -6,7 +6,7 @@
 ![Wayland](https://img.shields.io/badge/Wayland-ready-brightgreen)
 ![Stars](https://img.shields.io/github/stars/ciroautuori/whispy?style=social)
 ![Last Commit](https://img.shields.io/github/last-commit/ciroautuori/whispy)
-![Version](https://img.shields.io/badge/version-0.4.2-green)
+![Version](https://img.shields.io/badge/version-0.5.0-green)
 
 **Hold a key. Speak. Release. The text lands at your cursor.**
 
@@ -82,6 +82,20 @@ whole setup.
 
 Prefer the terminal? `whispy providers` prints the same list, and
 `tail -f /tmp/whispy.log` shows what happens while you dictate.
+
+Whispy also installs a launcher entry. Clicking it opens this panel;
+**right-clicking** it gives you a quick menu — dictate once, or switch backend
+without opening anything:
+
+```
+┌───────────────────────┐
+│ Whispy                │
+│   Dictate now         │
+│  ─────────────────    │
+│   ● Local             │
+│     Faster-Whisper    │
+└───────────────────────┘
+```
 
 ### Enable push-to-talk
 
@@ -167,7 +181,9 @@ The daemon idles at zero cost while you're not speaking.
 
 Press once to start, press again to transcribe. If you forget the second press, it stops on its own after `MAX_RECORD_SECONDS`.
 
-Bind `/home/YOUR_USER/.local/bin/whispy` to a shortcut — **use the absolute path**: KDE hotkeys run with `PATH=/usr/bin:/bin` and won't find the command otherwise.
+Bind `/home/YOUR_USER/.local/bin/whispy-hotkey` to a shortcut — **the absolute path, and the `-hotkey` one**. Desktop shortcuts start with a bare environment (KDE gives `PATH=/usr/bin:/bin` and no session variables); `whispy-hotkey` sets up what the paste path needs, `whispy` does not.
+
+Or skip the shortcut entirely and use **Dictate now** from the launcher's right-click menu, which already points at the wrapper.
 
 ---
 
@@ -177,8 +193,10 @@ Bind `/home/YOUR_USER/.local/bin/whispy` to a shortcut — **use the absolute pa
 |---------|-------------|
 | `whispy` | One toggle step: start recording, or stop and transcribe |
 | `whispy gui` | Desktop control panel: provider, API keys, recording settings |
+| `whispy use <provider>` | Switch backend, e.g. `whispy use groq` |
 | `whispy ptt` | Push-to-talk in the foreground (useful for debugging) |
 | `whispy providers` | List every backend and the environment variable it reads |
+| `whispy desktop` | Rewrite the launcher entry and its right-click menu |
 | `whispy version` | Print the version |
 
 Logs go to `/tmp/whispy.log` — `tail -f` it while you dictate.
@@ -192,7 +210,13 @@ offline on your own machine and needs no account and no key. The other backends
 exist for when you want them — a laptop with no GPU, or a language your local
 model handles poorly.
 
-Switch backend with `PROVIDER=` in the config, or pick one in `whispy gui`.
+Three ways to switch, all equivalent:
+
+- **Right-click the Whispy icon** in your application menu and pick one. Only
+  the providers that can actually run right now are listed, so the menu grows
+  as you add keys.
+- `whispy use groq` from a terminal.
+- Pick one in `whispy gui` — it applies as soon as you select it.
 
 API keys are read from environment variables, never from `whispy.conf` (that
 file is plaintext). The control panel can store them for you in

@@ -3,6 +3,41 @@
 All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/).
 
+## [0.5.0] - 2026-07-28
+
+### Added
+
+- **The launcher entry is an application again.** `install.sh` wrote a
+  `whispy.desktop` whose `Exec` was the dictation wrapper, so clicking "Whispy
+  Dictate" started a recording: nothing opened, nothing was visible, and it
+  stopped on its own eight seconds later. Clicking the icon now opens the
+  control panel.
+- **Switch provider from the launcher.** Right-clicking the icon offers
+  "Dictate now" plus one entry per provider, with the active one marked. Only
+  providers that can run right now are listed — one that needs an API key you
+  have not set is not offered until the key exists, so the menu grows as you
+  add keys and never presents an option that fails.
+- `whispy use <provider>` — switch backend in one command.
+- `whispy desktop` — rewrite the launcher entry on demand.
+- `Config.set_key()` — edits a single line of whispy.conf. `save()` rewrites
+  the whole file from the dataclass and would delete every comment you wrote,
+  which is too high a price for changing one setting.
+
+### Changed
+
+- The provider dropdown in the control panel applies immediately. It used to
+  need *Save Config*, so picking a provider and closing the window did nothing
+  at all. The other fields keep the explicit save.
+- Saving keys regenerates the launcher menu, so a cloud provider appears there
+  as soon as its key is stored.
+- `install.sh` generates the desktop entry through `whispy desktop` instead of
+  writing it inline — the menu depends on which keys exist, so it cannot be
+  frozen at install time.
+- `Categories` is `Utility;` alone. It was `Utility;AudioVideo;`, two main
+  categories, which makes launchers list the application twice.
+- `PROVIDER_INFO` gained a `label` per provider, so display names live in the
+  registry instead of a parallel map.
+
 ## [0.4.2] - 2026-07-28
 
 ### Changed
