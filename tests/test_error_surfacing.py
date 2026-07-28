@@ -12,6 +12,8 @@ import wave
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from whispy.config import Config
 from whispy.toggle import _transcribe_and_paste
 
@@ -53,6 +55,9 @@ def test_toggle_notifies_on_non_runtime_error(tmp_path: Path, monkeypatch) -> No
 
 
 def test_ptt_reports_instead_of_swallowing(tmp_path: Path, monkeypatch) -> None:
+    # whispy.ptt imports evdev at module level — skip where it isn't installed,
+    # same as test_ptt.py, so a runner without a C toolchain doesn't fail here.
+    pytest.importorskip("evdev", reason="python-evdev not installed")
     from whispy import ptt
 
     monkeypatch.setattr("whispy.toggle.LOG", tmp_path / "log")
